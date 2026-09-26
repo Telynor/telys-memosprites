@@ -73,16 +73,19 @@ function inject(app,html) {
  if(!nav||!body) return;
  const existingControl=nav.querySelector('[data-tab="tms-memosprite"]');
  const existingTab=body.querySelector('.tms-tab[data-tab="tms-memosprite"]');
- if(existingControl&&existingTab)return;
+ if(existingControl&&existingTab){addSettingsShortcut(root,existingControl);return;}
  existingControl?.remove();existingTab?.remove();
  const control=document.createElement('a');control.className='item control tms-control';control.dataset.action='tab';control.dataset.group='primary';control.dataset.tab='tms-memosprite';control.title='Memosprite';
  const c=config(actor);control.innerHTML=c.tabIcon?`<img src="${art({...c,image:c.tabIcon})}" alt="">`:'<i class="fas fa-ghost"></i>';
  control.setAttribute('aria-label','Memosprite');control.dataset.tooltip='Memosprite';
  const eidolon=nav.querySelector('[data-tab="tsru-eidolons"]');if(eidolon)eidolon.after(control);else nav.append(control);
+ nav.classList.add('tms-scrollable-tabs');
  body.insertAdjacentHTML('beforeend',panel(actor));const tab=body.querySelector('.tms-tab');
  control.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();nav.querySelectorAll('[data-tab]').forEach(el=>el.classList.remove('active'));control.classList.add('active');root.querySelectorAll('.tab[data-group="primary"]').forEach(el=>el.classList.remove('active'));tab.classList.add('active');root.classList.remove('tsru-tab-open','tsru-eidolon-tab-open');root.classList.add('tms-tab-open');if(app.tabGroups)app.tabGroups.primary='tms-memosprite';});
  nav.querySelectorAll('[data-tab]:not([data-tab="tms-memosprite"])').forEach(el=>el.addEventListener('click',()=>{tab.classList.remove('active');root.classList.remove('tms-tab-open');}));
  if(app.tabGroups?.primary==='tms-memosprite')control.click();
+ addSettingsShortcut(root,control);
+ requestAnimationFrame(()=>{if(root.isConnected)nav.scrollTop=nav.scrollHeight;});
  let timer;
  const collect=()=>{const patch={};for(const input of tab.querySelectorAll('[name]:not([name^="ability"])')) patch[input.name]=input.type==='checkbox'?input.checked:input.type==='number'?Number(input.value):input.value;
  patch.abilities=[...tab.querySelectorAll('.tms-ability')].map(row=>({name:row.querySelector('[name=abilityName]').value,text:row.querySelector('[name=abilityText]').value,cost:Number(row.querySelector('[name=abilityCost]').value)||0,icon:row.querySelector('[name=abilityIcon]').value}));return patch;};
@@ -107,6 +110,14 @@ function inject(app,html) {
  tab.addEventListener('pointermove',e=>{if(!drag)return;tab.querySelector('[name=frameX]').value=Math.round(drag.left+e.clientX-drag.x);tab.querySelector('[name=frameY]').value=Math.round(drag.top+e.clientY-drag.y);preview();});
  tab.addEventListener('pointerup',()=>{if(drag){drag=null;persist();}});
  tab.addEventListener('wheel',e=>{if(!e.target.closest('.tms-art')||!game.user.isGM)return;e.preventDefault();const input=tab.querySelector('[name=imageScale]');input.value=clamp(Number(input.value)+(e.deltaY<0?5:-5),25,400);preview();persist();},{passive:false});
+}
+function addSettingsShortcut(root,control){
+ const settings=root.querySelector('.tsru-sheet-tab[data-tab="tsru-ultimate"]');
+ if(!settings||settings.querySelector('[data-tms-open]'))return;
+ const button=document.createElement('button');button.type='button';button.dataset.tmsOpen='';button.className='tms-settings-shortcut';
+ button.innerHTML='<i class="fas fa-ghost"></i> Open Memosprite configuration';
+ button.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();control.click();});
+ settings.prepend(button);
 }
 function syncHud(){
  const host=document.querySelector('.tsru-combat-party-hud');if(!host)return;
@@ -134,4 +145,5 @@ function watchSheet(app,html){
  inject(app,root);setTimeout(()=>inject(app,root),100);setTimeout(()=>inject(app,root),350);
 }
 Hooks.on('renderActorSheet',watchSheet);
+Hooks.on('renderApplicationV2',(app,html)=>{if((app.actor??app.document)?.type==='character')watchSheet(app,html);});
 Hooks.on('updateActor',(actor,changes)=>{if(foundry.utils.hasProperty(changes,`flags.${ID}.config`)){for(const app of Object.values(actor.apps??{}))app.render(false);syncHud();}});
