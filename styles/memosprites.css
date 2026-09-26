@@ -6,3 +6,17 @@ nav.tms-scrollable-tabs .tms-control{display:flex!important;align-items:center;j
 nav.tms-scrollable-tabs .tms-control.active{background:#303343;color:#fff!important;box-shadow:inset 0 0 9px #dfc685}
 nav.tms-scrollable-tabs .tms-control i{font-size:17px}
 .tms-settings-shortcut{display:inline-flex;align-items:center;gap:8px;width:auto;margin:4px 0 12px;padding:6px 10px;border:1px solid #ba9f70;border-radius:5px;color:#f4dfae;background:#202637;cursor:pointer}
+/* Keep the configuration in the sheet's own scrolling content. */
+.tms-tab.tab{box-sizing:border-box;width:100%;max-width:100%;height:100%;min-height:0;overflow:auto;contain:layout;}
+.tms-tab .tms-layout{min-width:0;grid-template-columns:minmax(220px,1fr) minmax(230px,1fr);align-items:start}
+.tms-tab .tms-fields,.tms-tab .tms-preview{min-width:0}
+.tms-tab .tms-preview{position:relative;top:auto}
+.tms-tab .tms-preview-stage{height:230px;max-width:100%;box-sizing:border-box;overflow:hidden;display:grid;place-items:center;padding:12px;touch-action:none}
+.tms-tab .tms-preview-card{position:relative;transform-origin:center;flex:none;display:block}
+.tms-tab .tms-preview-card>.tms-summoner-card{overflow:hidden;isolation:isolate;box-shadow:0 0 0 1px #7c8d9b;background:#111724}
+.tms-tab .tms-summoner-card>.tms-frame{position:absolute;left:var(--frame-x);top:var(--frame-y);transform:scale(var(--frame-scale));transform-origin:top left;z-index:7;pointer-events:auto;cursor:grab;touch-action:none}
+.tms-tab .tms-summoner-card>.tms-frame:active{cursor:grabbing}
+.tms-control .tms-tab-symbol{width:22px;height:22px;display:block;color:#e9d9b4;filter:drop-shadow(0 0 2px #d2bc82)}
+.tms-control img{display:block;width:22px;height:22px;object-fit:contain;object-position:center;padding:0;margin:0;border:0;background:none;box-shadow:none}
+.tms-settings-shortcut .tms-tab-symbol{width:18px;height:18px;flex:none}
+@media(max-width:850px){.tms-tab .tms-layout{grid-template-columns:minmax(0,1fr)}}
