@@ -59,17 +59,30 @@ function panel(actor) {
  <p>Drag the frame in the preview to position it over the character card; scroll on artwork to zoom its image. Settings save automatically.</p></div>
  <div class="tms-preview"><h3>Frame preview</h3><div class="tms-preview-stage"><div class="tms-preview-host"><img src="${esc(actor.img)}" alt=""><span>${esc(actor.name)}</span></div><div class="tms-preview-frame" style="left:${clamp(c.frameX,-300,400)}px;top:${clamp(c.frameY,-300,200)}px;transform:scale(${clamp(c.frameScale,30,250)/100})">${frame(actor,c,{preview:true})}</div></div></div></div></section>`;
 }
-function rootOf(app,html) { const h=html?.jquery?html[0]:html; return h instanceof HTMLElement?h:app.element?.[0]??app.element??null; }
+function rootOf(app,html) {
+ const h=html?.jquery?html[0]:html;
+ const a=app.element?.jquery?app.element[0]:app.element?.[0] instanceof HTMLElement?app.element[0]:app.element;
+ const candidates=[h,h?.closest?.('.application, .window-app, [data-appid]'),a].filter(e=>e instanceof HTMLElement);
+ return candidates.find(e=>e.querySelector('nav.tabs[data-group="primary"],nav.sheet-tabs[data-group="primary"],.tabs-right nav.tabs')&&e.querySelector('.tab-body,.sheet-body,[data-application-part="body"]'))??candidates[1]??a??h;
+}
 function inject(app,html) {
  const actor=app.actor??app.document, root=rootOf(app,html);
  if(actor?.type!=='character'||!root) return;
  const nav=root.querySelector('nav.tabs[data-group="primary"],nav.sheet-tabs[data-group="primary"],.tabs-right nav.tabs');
  const body=root.querySelector('.tab-body,.sheet-body,[data-application-part="body"]');
  if(!nav||!body) return;
- root.querySelectorAll('[data-tab="tms-memosprite"]').forEach(el=>el.remove());
+ const existingControl=nav.querySelector('[data-tab="tms-memosprite"]');
+ const existingTab=body.querySelector('.tms-tab[data-tab="tms-memosprite"]');
+ if(existingControl&&existingTab)return;
+ existingControl?.remove();existingTab?.remove();
  const control=document.createElement('a');control.className='item control tms-control';control.dataset.action='tab';control.dataset.group='primary';control.dataset.tab='tms-memosprite';control.title='Memosprite';
- const c=config(actor);control.innerHTML=c.tabIcon?`<img src="${art({...c,image:c.tabIcon})}" alt="">`:'<i class="fas fa-ghost"></i>';nav.append(control);
+ const c=config(actor);control.innerHTML=c.tabIcon?`<img src="${art({...c,image:c.tabIcon})}" alt="">`:'<i class="fas fa-ghost"></i>';
+ control.setAttribute('aria-label','Memosprite');control.dataset.tooltip='Memosprite';
+ const eidolon=nav.querySelector('[data-tab="tsru-eidolons"]');if(eidolon)eidolon.after(control);else nav.append(control);
  body.insertAdjacentHTML('beforeend',panel(actor));const tab=body.querySelector('.tms-tab');
+ control.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();nav.querySelectorAll('[data-tab]').forEach(el=>el.classList.remove('active'));control.classList.add('active');root.querySelectorAll('.tab[data-group="primary"]').forEach(el=>el.classList.remove('active'));tab.classList.add('active');root.classList.remove('tsru-tab-open','tsru-eidolon-tab-open');root.classList.add('tms-tab-open');if(app.tabGroups)app.tabGroups.primary='tms-memosprite';});
+ nav.querySelectorAll('[data-tab]:not([data-tab="tms-memosprite"])').forEach(el=>el.addEventListener('click',()=>{tab.classList.remove('active');root.classList.remove('tms-tab-open');}));
+ if(app.tabGroups?.primary==='tms-memosprite')control.click();
  let timer;
  const collect=()=>{const patch={};for(const input of tab.querySelectorAll('[name]:not([name^="ability"])')) patch[input.name]=input.type==='checkbox'?input.checked:input.type==='number'?Number(input.value):input.value;
  patch.abilities=[...tab.querySelectorAll('.tms-ability')].map(row=>({name:row.querySelector('[name=abilityName]').value,text:row.querySelector('[name=abilityText]').value,cost:Number(row.querySelector('[name=abilityCost]').value)||0,icon:row.querySelector('[name=abilityIcon]').value}));return patch;};
@@ -111,5 +124,14 @@ Hooks.once('ready',()=>{
  game.modules.get(ID).api={config,save,summon:actor=>save(actor,{summoned:true}),unsummon:actor=>save(actor,{summoned:false})};
  observer=new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;syncHud();});});observer.observe(document.body,{childList:true,subtree:true});syncHud();
 });
-Hooks.on('renderActorSheet',inject);
+const sheetObservers=new WeakMap();
+function watchSheet(app,html){
+ const actor=app.actor??app.document;if(actor?.type!=='character')return;
+ const root=rootOf(app,html);if(!(root instanceof HTMLElement))return;
+ const previous=sheetObservers.get(app);if(previous?.root!==root){previous?.observer.disconnect();
+  let pending=false;const observer=new MutationObserver(()=>{if(pending)return;pending=true;setTimeout(()=>{pending=false;if(root.isConnected)inject(app,root);},60);});
+  observer.observe(root,{childList:true,subtree:true});sheetObservers.set(app,{root,observer});}
+ inject(app,root);setTimeout(()=>inject(app,root),100);setTimeout(()=>inject(app,root),350);
+}
+Hooks.on('renderActorSheet',watchSheet);
 Hooks.on('updateActor',(actor,changes)=>{if(foundry.utils.hasProperty(changes,`flags.${ID}.config`)){for(const app of Object.values(actor.apps??{}))app.render(false);syncHud();}});
