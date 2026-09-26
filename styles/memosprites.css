@@ -20,3 +20,36 @@ nav.tms-scrollable-tabs .tms-control i{font-size:17px}
 .tms-control img{display:block;width:22px;height:22px;object-fit:contain;object-position:center;padding:0;margin:0;border:0;background:none;box-shadow:none}
 .tms-settings-shortcut .tms-tab-symbol{width:18px;height:18px;flex:none}
 @media(max-width:850px){.tms-tab .tms-layout{grid-template-columns:minmax(0,1fr)}}
+/* The editor previews the complete combat HUD at a readable size. */
+.tms-tab .tms-layout{grid-template-columns:minmax(0,1fr)}
+.tms-tab .tms-preview{order:-1;width:100%}
+.tms-tab .tms-preview-stage{height:440px;min-height:350px;padding:28px;background:radial-gradient(ellipse at 50% 35%,#34445e 0%,#151b2c 60%,#0b0e19 100%)}
+.tms-tab .tms-preview-card>.tms-summoner-card{overflow:visible}
+.tms-tab .tms-frame-scale{display:flex;align-items:center;gap:12px;margin:12px 0 6px;font-size:14px;color:#f2ebdc}
+.tms-tab .tms-frame-scale input{flex:1;min-width:80px;accent-color:var(--tms-color)}
+.tms-tab .tms-frame-scale output{min-width:45px;text-align:right;font-weight:700;color:var(--tms-color)}
+.tms-tab .tms-preview-toggle{display:flex;align-items:center;gap:8px;margin:6px 0 12px;font-size:12px}
+.tms-tab .tms-preview-toggle input{accent-color:var(--tms-color)}
+.tms-preview-abilities{display:grid;gap:6px;margin:12px 0 18px}
+.tms-preview-abilities>div{display:grid;grid-template-columns:minmax(110px,1fr) auto;align-items:center;gap:4px 10px;padding:7px 10px;background:#151b2bbf;border-left:3px solid var(--tms-color);font-size:12px}
+.tms-preview-abilities strong{display:flex;align-items:center;gap:5px;color:#fff}
+.tms-preview-abilities img{width:22px;height:22px;object-fit:cover;border-radius:50%}
+.tms-preview-abilities span{color:var(--tms-color)}
+.tms-preview-abilities p{grid-column:1/-1;margin:0;color:#d9d6e0}
+/* HSR-style semicircle, numeric HP, resource emblem, and ability row. */
+.tms-frame{height:145px;overflow:visible}
+.tms-frame .tms-art{left:22px;right:0;top:2px;bottom:42px;border:0;border-radius:48% 45% 8px 8px;background:linear-gradient(130deg,#1c2840cc,#35405d77);box-shadow:inset 0 -8px 14px #101426}
+.tms-frame .tms-hp{left:-5px;top:0;width:58px;height:105px;stroke-width:6}
+.tms-frame .tms-hp-track{stroke:#171e30}
+.tms-frame .tms-hp-value{stroke:#74e5fa;filter:drop-shadow(0 0 4px #56d8ec)}
+.tms-frame .tms-name{left:49px;bottom:43px;max-width:calc(100% - 48px);font-size:10px}
+.tms-hp-number{position:absolute;right:4px;bottom:27px;z-index:4;color:#f4f7fb;font-size:15px;font-weight:800;text-shadow:0 1px 4px #03050a}
+.tms-hp-number small{font-size:9px;color:#b6cfde}
+.tms-hp-line{position:absolute;left:30px;right:2px;bottom:23px;height:5px;border-radius:5px;background:#172334;box-shadow:0 0 0 1px #73839a}
+.tms-hp-line i{display:block;width:var(--health);height:100%;border-radius:inherit;background:linear-gradient(90deg,#61d3ee,#99f4fb);box-shadow:0 0 7px #4cd6fa}
+.tms-ability-icons{position:absolute;left:31px;right:0;bottom:0;display:flex;align-items:center;gap:4px;height:20px;overflow:hidden}
+.tms-ability-icons span{display:flex;align-items:center;gap:2px;max-width:68px;font-size:8px;color:#dfe8ff;text-shadow:0 1px 3px #000;white-space:nowrap;overflow:hidden}
+.tms-ability-icons img{height:17px;width:17px;flex:none;object-fit:cover;border:1px solid var(--tms-color);border-radius:50%;background:#15182b}
+.tms-ability-icons b{overflow:hidden;text-overflow:ellipsis}
+.tms-frame .tms-counter,.tms-frame .tms-dots{top:63px;left:1px;right:auto;min-width:36px;min-height:29px;display:flex;align-items:center;justify-content:center;border:2px solid var(--tms-color);border-radius:50%;background:#28213ce8;box-shadow:0 0 9px color-mix(in srgb,var(--tms-color) 60%,transparent);font-size:12px}
+.tms-frame .tms-fang{top:56px;left:0;right:auto;width:50px;height:49px;clip-path:polygon(5% 0,96% 0,90% 62%,52% 100%,12% 65%);border:0;border-radius:0;display:grid;place-items:center;background:linear-gradient(to top,#68e6f6 var(--fill),#161c31 var(--fill));font-size:12px}
