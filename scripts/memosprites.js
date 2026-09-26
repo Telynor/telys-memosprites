@@ -131,11 +131,14 @@ function inject(app,html) {
  const actor=app.actor??app.document, root=rootOf(app,html);
  if(actor?.type!=='character'||!root) return;
  const nav=root.querySelector('nav.tabs[data-group="primary"],nav.sheet-tabs[data-group="primary"],.tabs-right nav.tabs');
- const body=root.querySelector('.tab-body,.sheet-body,[data-application-part="body"]');
+ const body=root.querySelector('.tsru-eidolon-tab[data-tab="tsru-eidolons"]')?.parentElement
+   ??root.querySelector('.tab-body')
+   ??root.querySelector('.sheet-body')
+   ??root.querySelector('[data-application-part="body"]');
  if(!nav||!body) return;
  const existingControl=nav.querySelector('[data-tab="tms-memosprite"]');
- const existingTab=body.querySelector('.tms-tab[data-tab="tms-memosprite"]');
- if(existingControl&&existingTab){addSettingsShortcut(root,existingControl);return;}
+ const existingTab=root.querySelector('.tms-tab[data-tab="tms-memosprite"]');
+ if(existingControl&&existingTab&&existingTab.parentElement===body){addSettingsShortcut(root,existingControl);return;}
  existingControl?.remove();existingTab?.remove();
  const control=document.createElement('a');control.className='item control tms-control';control.dataset.action='tab';control.dataset.group='primary';control.dataset.tab='tms-memosprite';control.title='Memosprite';
  const c=config(actor);control.innerHTML=c.tabIcon?`<img src="${esc(c.tabIcon)}" alt="">`:DEFAULT_TAB_ICON;
