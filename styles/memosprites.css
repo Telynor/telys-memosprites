@@ -39,20 +39,21 @@ nav.tms-scrollable-tabs .tms-control i{font-size:17px}
 /* HSR-style semicircle, numeric HP, resource emblem, and ability row. */
 .tms-frame{height:145px;overflow:visible}
 .tms-frame .tms-art{left:22px;right:0;top:2px;bottom:42px;border:0;border-radius:48% 45% 8px 8px;background:linear-gradient(130deg,#1c2840cc,#35405d77);box-shadow:inset 0 -8px 14px #101426}
+.tms-frame .tms-portrait{position:absolute;z-index:2;left:4px;top:25px;width:55px;height:55px;overflow:hidden;border:2px solid #b4d5ec;border-radius:50%;background:#101b2b;box-shadow:0 1px 9px #080d18}
+.tms-frame .tms-portrait img{display:block;width:100%;height:100%;max-width:none;object-fit:cover;object-position:center;border:0;border-radius:50%}
+.tms-frame.is-idle .tms-portrait img{filter:grayscale(1) brightness(.6)}
 .tms-frame .tms-hp{left:-5px;top:0;width:58px;height:105px;stroke-width:6}
 .tms-frame .tms-hp-track{stroke:#171e30}
 .tms-frame .tms-hp-value{stroke:#74e5fa;filter:drop-shadow(0 0 4px #56d8ec)}
 .tms-frame .tms-name{left:49px;bottom:43px;max-width:calc(100% - 48px);font-size:10px}
 .tms-hp-number{position:absolute;right:4px;bottom:27px;z-index:4;color:#f4f7fb;font-size:15px;font-weight:800;text-shadow:0 1px 4px #03050a}
 .tms-hp-number small{font-size:9px;color:#b6cfde}
-.tms-hp-line{position:absolute;left:30px;right:2px;bottom:23px;height:5px;border-radius:5px;background:#172334;box-shadow:0 0 0 1px #73839a}
-.tms-hp-line i{display:block;width:var(--health);height:100%;border-radius:inherit;background:linear-gradient(90deg,#61d3ee,#99f4fb);box-shadow:0 0 7px #4cd6fa}
-.tms-ability-icons{position:absolute;left:31px;right:0;bottom:0;display:flex;align-items:center;gap:4px;height:20px;overflow:hidden}
+.tms-ability-icons{position:absolute;left:58px;right:0;bottom:0;display:flex;align-items:center;gap:4px;height:20px;overflow:hidden}
 .tms-ability-icons span{display:flex;align-items:center;gap:2px;max-width:68px;font-size:8px;color:#dfe8ff;text-shadow:0 1px 3px #000;white-space:nowrap;overflow:hidden}
 .tms-ability-icons img{height:17px;width:17px;flex:none;object-fit:cover;border:1px solid var(--tms-color);border-radius:50%;background:#15182b}
 .tms-ability-icons b{overflow:hidden;text-overflow:ellipsis}
-.tms-frame .tms-counter,.tms-frame .tms-dots{top:63px;left:1px;right:auto;min-width:36px;min-height:29px;display:flex;align-items:center;justify-content:center;border:2px solid var(--tms-color);border-radius:50%;background:#28213ce8;box-shadow:0 0 9px color-mix(in srgb,var(--tms-color) 60%,transparent);font-size:12px}
-.tms-frame .tms-fang{top:56px;left:0;right:auto;width:50px;height:49px;clip-path:polygon(5% 0,96% 0,90% 62%,52% 100%,12% 65%);border:0;border-radius:0;display:grid;place-items:center;background:linear-gradient(to top,#68e6f6 var(--fill),#161c31 var(--fill));font-size:12px}
+.tms-frame .tms-counter,.tms-frame .tms-dots{top:102px;left:9px;right:auto;min-width:39px;min-height:30px;display:flex;align-items:center;justify-content:center;border:2px solid var(--tms-color);border-radius:50%;background:#28213ce8;box-shadow:0 0 9px color-mix(in srgb,var(--tms-color) 60%,transparent);font-size:12px}
+.tms-frame .tms-fang{top:96px;left:5px;right:auto;width:50px;height:49px;clip-path:polygon(5% 0,96% 0,90% 62%,52% 100%,12% 65%);border:0;border-radius:0;display:grid;place-items:center;background:linear-gradient(to top,#68e6f6 var(--fill),#161c31 var(--fill));font-size:12px}
 /* Let the character sheet own the scroll, including the end of long ability lists. */
 .dnd5e2.character.tms-tab-open .sheet-body .main-content,
 .dnd5e2.sheet.character.tms-tab-open .sheet-body .main-content{min-height:0;overflow-x:hidden!important;overflow-y:auto!important;scrollbar-width:thin;scrollbar-gutter:stable}
