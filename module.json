@@ -2,7 +2,7 @@
   "id": "telys-memosprites",
   "title": "Tely's Memosprites",
   "description": "Memosprite configuration, summoning, resources, and combat HUD for Tely's Star Rail Ultimates.",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "authors": [
     {
       "name": "Telynor"
@@ -40,5 +40,5 @@
   ],
   "socket": false,
   "manifest": "https://raw.githubusercontent.com/Telynor/telys-memosprites/main/module.json",
-  "download": "https://raw.githubusercontent.com/Telynor/telys-memosprites/main/telys-memosprites-v1.2.1.zip"
+  "download": "https://raw.githubusercontent.com/Telynor/telys-memosprites/main/telys-memosprites-v1.2.2.zip"
 }
