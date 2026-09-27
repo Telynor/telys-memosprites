@@ -70,6 +70,7 @@ nav.tms-scrollable-tabs .tms-control i{font-size:17px}
 .tms-summon-widget .tsru-skill-label{width:max-content;max-width:calc(var(--tsru-skill-size) + 24px);text-align:center;line-height:1.1;white-space:nowrap}
 .tms-summon-widget.is-summoned .tsru-skill-button{box-shadow:inset 0 0 12px #0b1420,0 0 16px var(--tsru-skill-color)}
 .tms-summon-widget .tms-summon-button{cursor:grab}
+.tsru-combat-party-member.tms-hide-hud-name>.tsru-combat-party-name{display:none!important}
 /* Let the character sheet own the scroll, including the end of long ability lists. */
 .dnd5e2.character.tms-tab-open .sheet-body .main-content,
 .dnd5e2.sheet.character.tms-tab-open .sheet-body .main-content{min-height:0;overflow-x:hidden!important;overflow-y:auto!important;scrollbar-width:thin;scrollbar-gutter:stable}
