@@ -1,7 +1,7 @@
 const ID = 'telys-memosprites';
 const HSR = 'telys-star-rail-ultimates';
 const DEFAULT_TAB_ICON='<svg class="tms-tab-symbol" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 19.4 11.6 29 15l-9.6 3.4L16 28l-3.4-9.6L3 15l9.6-3.4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="16" cy="15" r="4.2" fill="currentColor"/><path d="M24 3v5M21.5 5.5h5M26 23v5M23.5 25.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
-const DEFAULT = {enabled:false, summoned:false, sourceUuid:'', name:'Memosprite', image:'', tabIcon:'', imageX:50,imageY:50,imageScale:100, hp:20,maxHp:20, resourceType:'counter',resource:0,resourceMax:3, abilities:[],showOnHud:true,frameX:28,frameY:4,frameScale:75,frameWidth:145};
+const DEFAULT = {enabled:false, summoned:false, sourceUuid:'', name:'Memosprite', image:'', portrait:'', tabIcon:'', imageX:50,imageY:50,imageScale:100, hp:20,maxHp:20, resourceType:'counter',resource:0,resourceMax:3, abilities:[],showOnHud:true,frameX:28,frameY:4,frameScale:75,frameWidth:145};
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clamp = (v,min,max) => Math.max(min,Math.min(max,Number(v)||0));
 const config = actor => ({...DEFAULT,...actor.getFlag(ID,'config'),abilities:(actor.getFlag(ID,'config')?.abilities ?? []).slice(0,5)});
@@ -96,7 +96,8 @@ function frame(actor,c,{preview=false}={}) {
   const position=boundedFrame(c);
   return `<div class="tms-frame ${c.summoned?'is-summoned':'is-idle'}" style="--tms-color:${esc(color(actor))};--art-x:${clamp(c.imageX,-100,200)}%;--art-y:${clamp(c.imageY,-100,200)}%;--art-scale:${clamp(c.imageScale,25,400)/100};--health:${hp}%;--frame-width:${clamp(c.frameWidth,90,330)}px;--frame-x:${position.x}px;--frame-y:${position.y}px;--frame-scale:${frameScale(c)/100};">
     <div class="tms-art"><img src="${art(c)}" alt="${esc(c.name)}"></div>
-    ${c.summoned?`<svg class="tms-hp" viewBox="0 0 58 105" aria-label="${c.hp} of ${c.maxHp} HP"><path class="tms-hp-track" d="M49 5 C -12 18 -12 87 49 100"/><path class="tms-hp-value" d="M49 5 C -12 18 -12 87 49 100" pathLength="100" style="stroke-dasharray:${hp} 100"/></svg><div class="tms-hp-number">${Math.round(c.hp)} <small>/ ${Math.round(c.maxHp)}</small></div><div class="tms-hp-line"><i></i></div><div class="tms-ability-icons">${(c.abilities||[]).slice(0,5).map(a=>`<span title="${esc(`${a.name||'Ability'}${a.text?`: ${a.text}`:''} (cost ${a.cost??0})`)}">${a.icon?`<img src="${esc(a.icon)}" alt="">`:'✦'}<b>${esc(a.name||'Ability')}</b></span>`).join('')}</div>`:''}
+    <div class="tms-portrait"><img src="${esc(c.portrait||c.image||'icons/svg/mystery-man.svg')}" alt="${esc(c.name)} portrait"></div>
+    ${c.summoned?`<svg class="tms-hp" viewBox="0 0 58 105" aria-label="${c.hp} of ${c.maxHp} HP"><path class="tms-hp-track" d="M49 5 C -12 18 -12 87 49 100"/><path class="tms-hp-value" d="M49 5 C -12 18 -12 87 49 100" pathLength="100" style="stroke-dasharray:${hp} 100"/></svg><div class="tms-hp-number">${Math.round(c.hp)} <small>/ ${Math.round(c.maxHp)}</small></div><div class="tms-ability-icons">${(c.abilities||[]).slice(0,5).map(a=>`<span title="${esc(`${a.name||'Ability'}${a.text?`: ${a.text}`:''} (cost ${a.cost??0})`)}">${a.icon?`<img src="${esc(a.icon)}" alt="">`:'✦'}<b>${esc(a.name||'Ability')}</b></span>`).join('')}</div>`:''}
     <strong class="tms-name">${esc(c.name)}</strong>${resourceMarkup(c)}
   </div>`;
 }
@@ -110,6 +111,7 @@ function panel(actor) {
  ${label('Memosprite name','name',c.name)}${label('Source UUID','sourceUuid',c.sourceUuid)}
  ${label('Tab icon URL','tabIcon',c.tabIcon)}<button type="button" data-pick="tabIcon">Choose tab icon</button>
  ${label('Artwork URL','image',c.image)}<button type="button" data-pick="image">Choose artwork</button>
+ ${label('Circular portrait URL (defaults to artwork)','portrait',c.portrait)}<button type="button" data-pick="portrait">Choose portrait</button>
  <div class="tms-triple">${label('Artwork X','imageX',c.imageX,'number','min="-100" max="200"')}${label('Artwork Y','imageY',c.imageY,'number','min="-100" max="200"')}${label('Artwork scale %','imageScale',c.imageScale,'number','min="25" max="400"')}</div>
  <h3>HP and resource</h3><div class="tms-triple">${label('Current HP','hp',c.hp,'number','min="0"')}${label('Maximum HP','maxHp',c.maxHp,'number','min="1"')}</div>
  <label>Resource display<select name="resourceType"><option value="counter" ${c.resourceType==='counter'?'selected':''}>X/Y counter</option><option value="dots" ${c.resourceType==='dots'?'selected':''}>Up to 3 usage dots</option><option value="percent" ${c.resourceType==='percent'?'selected':''}>Fang percentage</option></select></label>
