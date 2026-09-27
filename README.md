@@ -11,3 +11,7 @@ The module adds a tab beside the existing HSR sheet tabs without modifying the r
 An enabled Remembrance character gets a movable, resizable floating Summon button, shown for the player's selected main character or the GM's eligible characters. Click to summon or unsummon. Drag the button onto a Foundry hotbar slot to create a summon macro. Closing the button hides it on that user's client; **Show floating summon button now** in the character's Memosprite tab restores it.
 
 When **Has a memosprite?** and **Show over this character’s HUD** are enabled, the unsummoned portrait appears gray on the HSR combat party HUD. Summoning restores color and shows the memosprite HP arc, resource, and abilities. The Talent hiding switch applies to any enabled character with a memosprite. The HSR combat party HUD must be visible to see these effects.
+
+## Summoning on the battle map
+
+Drag a world Actor into the memosprite slot. A Remembrance character with **Has a memosprite?** enabled can press **Summon** to highlight empty adjacent squares around their token. The owning player or GM clicks one square; a linked token is created there and the memosprite joins the current combat with its own initiative roll. Before placement, the HUD displays a grayscale portrait without the memosprite HP or resource widgets; after placement, it uses full color, the linked Actor’s HP, and configured resources and abilities. Unsummoning removes the token and its combat entry. Players need an active GM to perform token and combat document creation.
