@@ -1,7 +1,7 @@
 const ID = 'telys-memosprites';
 const HSR = 'telys-star-rail-ultimates';
 const DEFAULT_TAB_ICON='<svg class="tms-tab-symbol" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 19.4 11.6 29 15l-9.6 3.4L16 28l-3.4-9.6L3 15l9.6-3.4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="16" cy="15" r="4.2" fill="currentColor"/><path d="M24 3v5M21.5 5.5h5M26 23v5M23.5 25.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
-const DEFAULT = {enabled:false, summoned:false, sourceUuid:'', name:'Memosprite', image:'', portrait:'', portraitCropX:0,portraitCropY:0,portraitCropScale:100, tabIcon:'', imageX:50,imageY:50,imageScale:100, hp:20,maxHp:20, resourceType:'counter',resource:0,resourceMax:3, abilities:[],showOnHud:true,showHudName:true,hideTalentOnHud:true,showPortrait:true,showHpArc:true,showHpNumber:true,showResource:true,showAbilities:true,showSummonButton:true,frameX:28,frameY:4,frameScale:75,frameWidth:145,portraitX:0,portraitY:0,portraitScale:100,hpTextX:0,hpTextY:0,hpTextScale:100,resourceX:0,resourceY:0,resourceScale:100,abilitiesX:0,abilitiesY:0,abilitiesScale:100};
+const DEFAULT = {enabled:false, summoned:false, summonedTokenId:'', sourceUuid:'', name:'Memosprite', image:'', portrait:'', portraitCropX:0,portraitCropY:0,portraitCropScale:100, tabIcon:'', imageX:50,imageY:50,imageScale:100, hp:20,maxHp:20, resourceType:'counter',resource:0,resourceMax:3, abilities:[],showOnHud:true,showHudName:true,hideTalentOnHud:true,showPortrait:true,showHpArc:true,showHpNumber:true,showResource:true,showAbilities:true,showSummonButton:true,frameX:28,frameY:4,frameScale:75,frameWidth:145,portraitX:0,portraitY:0,portraitScale:100,hpTextX:0,hpTextY:0,hpTextScale:100,resourceX:0,resourceY:0,resourceScale:100,abilitiesX:0,abilitiesY:0,abilitiesScale:100};
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clamp = (v,min,max) => Math.max(min,Math.min(max,Number(v)||0));
 const config = actor => ({...DEFAULT,...actor.getFlag(ID,'config'),abilities:(actor.getFlag(ID,'config')?.abilities ?? []).slice(0,5)});
@@ -88,6 +88,7 @@ function sourceActor(c){
  if(!c.sourceUuid?.startsWith('Actor.')&&!c.sourceUuid?.startsWith('Compendium.'))return null;
  try{const document=typeof fromUuidSync==='function'?fromUuidSync(c.sourceUuid):game.actors.get(c.sourceUuid.split('.')[1]);return document?.documentName==='Actor'?document:null;}catch{return null;}
 }
+function hasSummonedToken(c){return Boolean(c.summoned&&c.summonedTokenId&&game.scenes.some(scene=>scene.tokens.get(c.summonedTokenId)?.getFlag(ID,'summonerId')));}
 function memospriteHealth(c){
  const source=sourceActor(c),attributes=source?.system?.attributes?.hp;
  if(!attributes)return {hp:clamp(c.hp,0,Math.max(1,Number(c.maxHp)||1)),maxHp:Math.max(1,Number(c.maxHp)||1),linked:false};
@@ -194,7 +195,7 @@ function inject(app,html) {
    case 'portrait-editor':openPortraitEditor(actor,current);return;
    case 'show-summon-widget':await setWidgetLayout(actor.id,{hidden:false});break;
    case 'toggle-element':if(game.user.isGM){const key=action.dataset.element;await save(actor,{[key]:!current[key]});}break;
-   case 'summon':if(!current.enabled)return;await save(actor,{summoned:!current.summoned});break;
+   case 'summon':if(!current.enabled)return;await toggleSummon(actor);return;
    case 'restore':if(game.user.isGM)await save(actor,{resource:current.resourceMax,...(memospriteHealth(current).linked?{}:{hp:current.maxHp})});break;
    case 'add-ability':if(game.user.isGM)await save(actor,{abilities:[...current.abilities,{name:'New ability',text:'',cost:1,icon:''}].slice(0,5)});break;
    case 'remove-ability':if(game.user.isGM)await save(actor,{abilities:current.abilities.filter((_,i)=>i!==Number(action.closest('[data-index]').dataset.index))});break;
@@ -230,10 +231,104 @@ function mainCharacter(){
  const chosen=game.settings.get(HSR,'selectedMainCharacterId')||(game.settings.get(HSR,'partySelections')??{})[game.user.id]||game.user.character?.id;
  const actor=game.actors.get(chosen);return actor?.isOwner?actor:null;
 }
+const SUMMON_SOCKET=`module.${ID}`;
+const pendingSummons=new Map();
+let summonPicker=null;
+function gridSize(scene){const grid=scene.grid;return {x:Number(grid.sizeX||grid.size)||canvas.dimensions.size,y:Number(grid.sizeY||grid.size)||canvas.dimensions.size};}
+function summonerToken(actor){
+ const active=canvas.tokens?.controlled?.find(t=>t.actor?.id===actor.id);
+ return active??canvas.tokens?.placeables?.find(t=>t.actor?.id===actor.id&&t.document?.combatant)??canvas.tokens?.placeables?.find(t=>t.actor?.id===actor.id);
+}
+function adjacentSquares(actor,scene=canvas.scene){
+ if(!scene)return [];
+ const controlled=summonerToken(actor);
+ const d=controlled?.document?.parent?.id===scene.id?controlled.document:scene.tokens.find(t=>t.actorId===actor.id&&game.combat?.combatants.some(entry=>entry.tokenId===t.id&&entry.sceneId===scene.id))??scene.tokens.find(t=>t.actorId===actor.id);
+ if(!d)return [];
+ const {x:gx,y:gy}=gridSize(scene);
+ const left=Math.floor(d.x/gx),top=Math.floor(d.y/gy),right=Math.ceil((d.x+d.width*gx)/gx),bottom=Math.ceil((d.y+d.height*gy)/gy);
+ const squares=[];
+ for(let row=top-1;row<=bottom;row++)for(let col=left-1;col<=right;col++){
+  if(col>=left&&col<right&&row>=top&&row<bottom)continue;
+  const x=col*gx,y=row*gy;
+  if(x<0||y<0||x+gx>scene.width||y+gy>scene.height)continue;
+  const occupied=scene.tokens.some(other=>other.id!==d.id&&x<other.x+other.width*gx&&x+gx>other.x&&y<other.y+other.height*gy&&y+gy>other.y);
+  if(!occupied)squares.push({x,y});
+ }
+ return squares;
+}
+function stopSummonPicker(){if(!summonPicker)return;summonPicker.graphics.destroy();summonPicker=null;}
+async function summonAction(actor,action,position){
+ if(!actor||!canEdit(actor))throw Error('You do not own this character.');
+ if(game.user.isGM)return performSummonAction(actor,action,position);
+ const gm=game.users.find(u=>u.isGM&&u.active);
+ if(!gm)throw Error('A GM must be online to create the memosprite token and initiative entry.');
+ const id=foundry.utils.randomID();
+ return new Promise((resolve,reject)=>{
+  const timer=setTimeout(()=>{pendingSummons.delete(id);reject(Error('The GM did not respond to the summon request.'));},12000);
+  pendingSummons.set(id,{resolve,reject,timer});
+  game.socket.emit(SUMMON_SOCKET,{type:'request',id,actorId:actor.id,action,position,sceneId:canvas.scene?.id,userId:game.user.id});
+ });
+}
+async function performSummonAction(actor,action,position,{sceneId=canvas.scene?.id,userId=game.user.id}={}){
+ const user=game.users.get(userId);
+ if(!user||!(user.isGM||actor.testUserPermission(user,'OWNER')))throw Error('This player does not own the summoner.');
+ const c=config(actor),scene=action==='unsummon'?(game.scenes.find(s=>s.tokens.get(c.summonedTokenId))??game.scenes.get(sceneId)):game.scenes.get(sceneId);
+ if(!scene||!c.enabled||!isRemembrance(actor))throw Error('Configure a Remembrance character and open its scene first.');
+ if(action==='unsummon'){
+  const token=scene.tokens.get(c.summonedTokenId);
+  if(token?.getFlag(ID,'summonerId')===actor.id){
+   const combatant=game.combat?.combatants.find(entry=>entry.tokenId===token.id&&entry.sceneId===scene.id);
+   if(combatant)await game.combat.deleteEmbeddedDocuments('Combatant',[combatant.id]);
+   await scene.deleteEmbeddedDocuments('Token',[token.id]);
+  }
+  await save(actor,{summoned:false,summonedTokenId:''});return;
+ }
+ if(c.summoned&&scene.tokens.get(c.summonedTokenId))throw Error('This memosprite is already summoned.');
+ const source=await fromUuid(c.sourceUuid);
+ if(source?.documentName!=='Actor'||!game.actors.get(source.id))throw Error('Link a world Actor in the memosprite menu before summoning.');
+ if(!position||!adjacentSquares(actor,scene).some(square=>square.x===position.x&&square.y===position.y))throw Error('That adjacent square is occupied or unavailable.');
+ const tokenDocument=await source.getTokenDocument({x:position.x,y:position.y,actorLink:true});
+ const tokenData=tokenDocument.toObject();
+ tokenData.x=position.x;tokenData.y=position.y;tokenData.actorId=source.id;tokenData.actorLink=true;
+ tokenData.flags={...tokenData.flags,[ID]:{summonerId:actor.id}};
+ const [created]=await scene.createEmbeddedDocuments('Token',[tokenData]);
+ try{
+  const combat=game.combat;
+  if(combat?.scene?.id===scene.id){
+   const [entry]=await combat.createEmbeddedDocuments('Combatant',[{tokenId:created.id,sceneId:scene.id,actorId:source.id}]);
+   await combat.rollInitiative([entry.id]);
+  }
+  await save(actor,{summoned:true,summonedTokenId:created.id});
+ }catch(error){await scene.deleteEmbeddedDocuments('Token',[created.id]);throw error;}
+}
+function openSummonPicker(actor){
+ if(!canvas?.ready||!canvas.scene)throw Error('Open the battle map first.');
+ const c=config(actor);
+ if(!c.enabled||!isRemembrance(actor))throw Error('This character needs a configured memosprite and the Remembrance path.');
+ if(!sourceActor(c)||!game.actors.get(sourceActor(c).id))throw Error('Drag a world Actor into the memosprite menu first.');
+ const squares=adjacentSquares(actor);
+ if(!squares.length)throw Error('No unoccupied squares surround this character’s token.');
+ stopSummonPicker();
+ const graphics=new PIXI.Graphics();graphics.eventMode='static';canvas.stage.addChild(graphics);
+ summonPicker={graphics,actorId:actor.id};
+ const {x:gx,y:gy}=gridSize(canvas.scene);
+ for(const square of squares){
+  graphics.rect(square.x+2,square.y+2,gx-4,gy-4).fill({color:0x65d9ff,alpha:.32});
+  graphics.rect(square.x+2,square.y+2,gx-4,gy-4).stroke({color:0xb1f0ff,width:3,alpha:.95});
+ }
+ graphics.on('pointertap',async event=>{
+  const point=event.global,local=canvas.stage.toLocal(point);
+  const square=squares.find(s=>local.x>=s.x&&local.x<s.x+gx&&local.y>=s.y&&local.y<s.y+gy);
+  if(!square)return;
+  event.stopPropagation();stopSummonPicker();
+  try{await summonAction(actor,'summon',square);}catch(error){ui.notifications.error(error.message);}
+ });
+ ui.notifications.info('Click a highlighted square to summon the memosprite.');
+}
 async function toggleSummon(actor){
  if(!actor||!canEdit(actor))return ui.notifications.warn('You cannot summon this character’s memosprite.');
- const c=config(actor);if(!c.enabled||!isRemembrance(actor))return ui.notifications.warn('This character needs a configured memosprite and the Remembrance path.');
- await save(actor,{summoned:!c.summoned});refreshSummonWidgets();
+ try{if(hasSummonedToken(config(actor))){stopSummonPicker();await summonAction(actor,'unsummon');}else openSummonPicker(actor);}catch(error){ui.notifications.warn(error.message);}
+ refreshSummonWidgets();
 }
 const summonWidgets=new Map();
 function widgetLayouts(){return game.settings.get(ID,'summonWidgetLayouts')??{};}
@@ -260,7 +355,7 @@ function refreshSummonWidgets(){
    button.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',JSON.stringify({type:'TMSAction',action:'summon',actorId:actor.id,actorUuid:actor.uuid}));e.dataTransfer.effectAllowed='copy';});
   }
   el.style.left=`${clamp(layout.x??600,0,window.innerWidth-40)}px`;el.style.top=`${clamp(layout.y??330,0,window.innerHeight-40)}px`;el.style.setProperty('--tsru-skill-size',`${clamp(layout.size??96,64,280)}px`);el.style.setProperty('--tsru-skill-color',color(actor));
-  const button=el.querySelector('.tms-summon-button');button.querySelector('img').src=c.portrait||c.image||actor.img||'icons/svg/mystery-man.svg';button.title=`${c.summoned?'Unsummon':'Summon'} ${c.name}`;el.querySelector('.tsru-skill-label').textContent=c.summoned?'Unsummon':'Summon';el.classList.toggle('is-summoned',Boolean(c.summoned));
+  const button=el.querySelector('.tms-summon-button'),summoned=hasSummonedToken(c);button.querySelector('img').src=c.portrait||c.image||actor.img||'icons/svg/mystery-man.svg';button.title=`${summoned?'Unsummon':'Summon'} ${c.name}`;el.querySelector('.tsru-skill-label').textContent=summoned?'Unsummon':'Summon';el.classList.toggle('is-summoned',summoned);
  }
  for(const [id,el] of summonWidgets)if(!eligible.has(id)){el.remove();summonWidgets.delete(id);}
 }
@@ -276,16 +371,27 @@ function syncHud(){
   const actor=game.actors.get(card.dataset.actorId);if(!actor)continue;const c=config(actor);
   const existing=card.querySelector(':scope > .tms-frame');
   card.classList.toggle('tms-hide-hud-name',Boolean(c.enabled&&c.showOnHud&&!c.showHudName));
-  card.classList.toggle('tms-hide-hud-talent',Boolean(c.enabled&&c.showOnHud&&c.hideTalentOnHud));
+  const hideTalent=Boolean(c.enabled&&c.showOnHud&&c.hideTalentOnHud);
+  card.classList.toggle('tms-hide-hud-talent',hideTalent);
+  const talent=card.querySelector(':scope > .tsru-combat-party-talent');
+  if(talent){if(hideTalent)talent.style.setProperty('display','none','important');else talent.style.removeProperty('display');}
   if(!(c.enabled&&c.showOnHud)){existing?.remove();continue;}
-  const signature=JSON.stringify([c,memospriteHealth(c),color(actor),hudDesign()]);
-  if(existing?.dataset.signature!==signature){existing?.remove();card.insertAdjacentHTML('beforeend',frame(actor,c));card.querySelector(':scope > .tms-frame').dataset.signature=signature;}
+  const display={...c,summoned:hasSummonedToken(c)};
+  const signature=JSON.stringify([display,memospriteHealth(c),color(actor),hudDesign()]);
+  if(existing?.dataset.signature!==signature){existing?.remove();card.insertAdjacentHTML('beforeend',frame(actor,display));card.querySelector(':scope > .tms-frame').dataset.signature=signature;}
  }
 }
 let observer, queued=false;
 Hooks.once('ready',()=>{
  if(!game.modules.get(HSR)?.active){ui.notifications.error("Tely's Memosprites requires Tely's Star Rail Ultimates.");return;}
- game.modules.get(ID).api={config,save,summon:actor=>save(actor,{summoned:true}),unsummon:actor=>save(actor,{summoned:false}),toggleSummon};
+ game.modules.get(ID).api={config,save,summon:actor=>openSummonPicker(actor),unsummon:actor=>summonAction(actor,'unsummon'),toggleSummon};
+ game.socket.on(SUMMON_SOCKET,async message=>{
+  if(message.type==='result'&&message.userId===game.user.id){const request=pendingSummons.get(message.id);if(!request)return;clearTimeout(request.timer);pendingSummons.delete(message.id);message.error?request.reject(Error(message.error)):request.resolve();return;}
+  if(message.type!=='request'||!game.user.isGM||game.users.find(u=>u.isGM&&u.active)?.id!==game.user.id)return;
+  let error='';
+  try{const actor=game.actors.get(message.actorId);if(!actor)throw Error('The summoner is unavailable.');await performSummonAction(actor,message.action,message.position,{sceneId:message.sceneId,userId:message.userId});}catch(cause){error=cause.message;}
+  game.socket.emit(SUMMON_SOCKET,{type:'result',id:message.id,userId:message.userId,error});
+ });
  Hooks.on('dnd5e.rollDamageV2',onDndDamage);
  if(game.modules.get('midi-qol')?.active){Hooks.on('midi-qol.damageRollComplete',onMidiDamage);Hooks.on('midi-qol.RollComplete',onMidiDamage);}
  observer=new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;syncHud();});});observer.observe(document.body,{childList:true,subtree:true});syncHud();refreshSummonWidgets();
@@ -305,3 +411,8 @@ Hooks.on('renderActorSheet',watchSheet);
 Hooks.on('renderApplicationV2',(app,html)=>{if((app.actor??app.document)?.type==='character')watchSheet(app,html);});
 Hooks.on('updateActor',(actor,changes)=>{if(foundry.utils.hasProperty(changes,`flags.${ID}.config`)){for(const app of Object.values(actor.apps??{}))app.render(false);syncHud();refreshSummonWidgets();}else if(foundry.utils.hasProperty(changes,'system.attributes.hp')||Object.keys(changes).some(key=>key.startsWith('system.attributes.hp.'))){for(const summoner of game.actors.filter(a=>config(a).sourceUuid===actor.uuid))for(const app of Object.values(summoner.apps??{}))app.render(false);syncHud();}else if(foundry.utils.hasProperty(changes,`flags.${HSR}.ultimate`)){syncHud();refreshSummonWidgets();}});
 Hooks.on('updateSetting',setting=>{if([`${HSR}.combatHudDesign`,`${HSR}.paths`].includes(setting?.key))syncHud();if([`${HSR}.selectedMainCharacterId`,`${HSR}.partySelections`,`${HSR}.paths`,`${ID}.summonWidgetLayouts`].includes(setting?.key))refreshSummonWidgets();});
+Hooks.on('deleteToken',token=>{
+ if(!game.user.isGM)return;
+ for(const actor of game.actors.filter(a=>config(a).summonedTokenId===token.id))save(actor,{summoned:false,summonedTokenId:''}).catch(console.error);
+});
+Hooks.on('canvasTearDown',stopSummonPicker);
