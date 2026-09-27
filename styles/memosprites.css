@@ -41,7 +41,7 @@ nav.tms-scrollable-tabs .tms-control i{font-size:17px}
 .tms-frame .tms-art{left:22px;right:0;top:2px;bottom:42px;border:0;border-radius:48% 45% 8px 8px;background:linear-gradient(130deg,#1c2840cc,#35405d77);box-shadow:inset 0 -8px 14px #101426}
 .tms-frame .tms-portrait-unit{position:absolute;z-index:3;left:var(--portrait-x,0px);top:var(--portrait-y,0px);width:70px;height:100px;transform:scale(var(--portrait-scale,1));transform-origin:top left}
 .tms-frame .tms-portrait{position:absolute;z-index:2;left:6px;top:21px;width:58px;height:58px;box-sizing:border-box;overflow:hidden;border:2px solid #b4d5ec;border-radius:50%;background:#101b2b;box-shadow:0 1px 9px #080d18}
-.tms-frame .tms-portrait img{display:block;width:100%;height:100%;max-width:none;object-fit:cover;object-position:center;border:0;border-radius:50%}
+.tms-frame .tms-portrait img{display:block;width:100%;height:100%;max-width:none;object-fit:cover;object-position:center;border:0;border-radius:50%;transform:translate(var(--crop-x,0px),var(--crop-y,0px)) scale(var(--crop-scale,1));transform-origin:center}
 .tms-frame.is-idle .tms-portrait img{filter:grayscale(1) brightness(.6)}
 .tms-frame .tms-hp{left:0;top:0;width:70px;height:100px;stroke-width:5;pointer-events:none}
 .tms-frame .tms-hp-track{stroke:#171e30}
@@ -58,8 +58,18 @@ nav.tms-scrollable-tabs .tms-control i{font-size:17px}
 .tms-frame [data-part="resource"]{transform:translate(var(--resource-x,0px),var(--resource-y,0px)) scale(var(--resource-scale,1));transform-origin:left top}
 .tms-part-editor{padding:8px;border:1px solid #59657d;border-radius:5px;background:#151d2c}
 .tms-part-editor>strong{color:var(--tms-color);font-size:12px}
+.tms-part-editor>button{float:right;min-height:22px;padding:2px 7px;color:#f0d7d7;border:1px solid #8d6464;background:#39252d;font-size:11px}
 .tms-tab .tms-summoner-card .tms-frame [data-part]{pointer-events:auto;cursor:move;touch-action:none}
 .tms-tab .tms-summoner-card .tms-frame [data-part]:active{cursor:grabbing}
+.tms-portrait-editor{display:grid;gap:9px;min-width:0;color:#f5f0ec}.tms-portrait-editor p{margin:0}.tms-portrait-editor label{display:grid;gap:3px}.tms-portrait-editor input{width:100%;min-width:0}
+.tms-portrait-crop-stage{position:relative;display:grid;place-items:center;width:min(100%,330px);height:290px;margin:auto;border:1px solid #728fa0;background:radial-gradient(circle,#354158,#111826 70%);cursor:grab;touch-action:none;overflow:hidden}
+.tms-portrait-crop-stage:active{cursor:grabbing}.tms-portrait-crop-circle{position:relative;width:174px;height:174px;overflow:hidden;border:3px solid #b4d5ec;border-radius:50%;background:#101b2b;pointer-events:none}.tms-portrait-crop-circle img{display:block;width:100%;height:100%;max-width:none;object-fit:cover;border:0;pointer-events:none}
+.tms-portrait-crop-stage svg{position:absolute;left:50%;top:50%;width:210px;height:300px;transform:translate(-50%,-50%);overflow:visible;fill:none;stroke:#74e5fa;stroke-width:2;filter:drop-shadow(0 0 2px #56d8ec);pointer-events:none}
+.tms-portrait-crop-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tms-summon-widget{z-index:80!important;--tsru-skill-color:#e5c878}
+.tms-summon-widget .tsru-skill-label{width:max-content;max-width:calc(var(--tsru-skill-size) + 24px);text-align:center;line-height:1.1;white-space:nowrap}
+.tms-summon-widget.is-summoned .tsru-skill-button{box-shadow:inset 0 0 12px #0b1420,0 0 16px var(--tsru-skill-color)}
+.tms-summon-widget .tms-summon-button{cursor:grab}
 /* Let the character sheet own the scroll, including the end of long ability lists. */
 .dnd5e2.character.tms-tab-open .sheet-body .main-content,
 .dnd5e2.sheet.character.tms-tab-open .sheet-body .main-content{min-height:0;overflow-x:hidden!important;overflow-y:auto!important;scrollbar-width:thin;scrollbar-gutter:stable}
