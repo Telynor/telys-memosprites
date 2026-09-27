@@ -1,7 +1,7 @@
 const ID = 'telys-memosprites';
 const HSR = 'telys-star-rail-ultimates';
 const DEFAULT_TAB_ICON='<svg class="tms-tab-symbol" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 19.4 11.6 29 15l-9.6 3.4L16 28l-3.4-9.6L3 15l9.6-3.4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="16" cy="15" r="4.2" fill="currentColor"/><path d="M24 3v5M21.5 5.5h5M26 23v5M23.5 25.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
-const DEFAULT = {enabled:false, summoned:false, sourceUuid:'', name:'Memosprite', image:'', portrait:'', portraitCropX:0,portraitCropY:0,portraitCropScale:100, tabIcon:'', imageX:50,imageY:50,imageScale:100, hp:20,maxHp:20, resourceType:'counter',resource:0,resourceMax:3, abilities:[],showOnHud:true,showPortrait:true,showHpArc:true,showHpNumber:true,showResource:true,showAbilities:true,showSummonButton:true,frameX:28,frameY:4,frameScale:75,frameWidth:145,portraitX:0,portraitY:0,portraitScale:100,hpTextX:0,hpTextY:0,hpTextScale:100,resourceX:0,resourceY:0,resourceScale:100,abilitiesX:0,abilitiesY:0,abilitiesScale:100};
+const DEFAULT = {enabled:false, summoned:false, sourceUuid:'', name:'Memosprite', image:'', portrait:'', portraitCropX:0,portraitCropY:0,portraitCropScale:100, tabIcon:'', imageX:50,imageY:50,imageScale:100, hp:20,maxHp:20, resourceType:'counter',resource:0,resourceMax:3, abilities:[],showOnHud:true,showHudName:true,showPortrait:true,showHpArc:true,showHpNumber:true,showResource:true,showAbilities:true,showSummonButton:true,frameX:28,frameY:4,frameScale:75,frameWidth:145,portraitX:0,portraitY:0,portraitScale:100,hpTextX:0,hpTextY:0,hpTextScale:100,resourceX:0,resourceY:0,resourceScale:100,abilitiesX:0,abilitiesY:0,abilitiesScale:100};
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clamp = (v,min,max) => Math.max(min,Math.min(max,Number(v)||0));
 const config = actor => ({...DEFAULT,...actor.getFlag(ID,'config'),abilities:(actor.getFlag(ID,'config')?.abilities ?? []).slice(0,5)});
@@ -23,7 +23,7 @@ function hudPreview(actor,c,{summoned=true}={}){
  const hp=actor.system?.attributes?.hp??{},hpMax=Math.max(1,Number(hp.max)||1),hpValue=clamp(hp.value,0,hpMax),hpPercent=hpValue/hpMax*100,shieldPercent=clamp((Number(hp.temp)||0)/hpMax*100,0,100);
  const energy=clamp((Number(p.current)||0)/Math.max(1,Number(p.max)||100)*100,0,100),portrait=p.combatHudPortrait||actor.img||'icons/svg/mystery-man.svg',orb=p.ultimateButtonImage||p.orbImage||actor.img||'icons/svg/mystery-man.svg';
  const talentMax=Math.max(0,Number(p.talentPointsMax)||0),talentValue=clamp(p.talentPointsCurrent,0,talentMax),talent=p.talentText||talentMax?`<div class="tsru-combat-party-talent" style="--talent-progress:${talentMax?talentValue/talentMax*360:0}deg;--talent-color:${esc(color(actor))}"><img src="${esc(p.talentIcon||actor.img)}" alt=""><strong>${talentValue}/${talentMax}</strong></div>`:'';
- return `<article class="tsru-combat-party-member tms-summoner-card ${shieldPercent?'has-shield':''}" style="${style};--hud-x:${clamp(p.combatHudPortraitX??50,0,100)}%;--hud-y:${clamp(p.combatHudPortraitY??50,0,100)}%;--hud-scale:${clamp(p.combatHudPortraitScale??100,50,300)/100};--hud-flip:${p.combatHudPortraitFlip?-1:1};--tsru-ultimate-x:${clamp(p.ultimateButtonX??50,0,100)}%;--tsru-ultimate-y:${clamp(p.ultimateButtonY??50,0,100)}%;--tsru-ultimate-scale:${clamp(p.ultimateButtonScale??100,50,400)/100};--energy:${energy}%;--energy-color:${esc(color(actor))};--hp:${hpPercent}%;--shield:${shieldPercent}%"><div class="tsru-combat-party-portrait"><img src="${esc(portrait)}" alt=""></div><strong class="tsru-combat-party-name">${esc(actor.name)}</strong><div class="tsru-combat-party-hp"><b class="tsru-combat-party-shield-icon" aria-hidden="true"><i class="fas fa-shield-halved"></i></b><i class="tsru-combat-party-health"></i><span>${hpValue}/${hpMax}</span></div>${talent}<div class="tsru-combat-party-ultimate-wrap"><button type="button" disabled><span class="tsru-hud-orb-fill"></span><img src="${esc(orb)}" alt="">${p.showHudPercent?`<strong>${Math.round(energy)}%</strong>`:''}</button></div>${frame(actor,{...c,summoned})}</article>`;
+ return `<article class="tsru-combat-party-member tms-summoner-card ${shieldPercent?'has-shield':''} ${c.showHudName?'':'tms-hide-hud-name'}" style="${style};--hud-x:${clamp(p.combatHudPortraitX??50,0,100)}%;--hud-y:${clamp(p.combatHudPortraitY??50,0,100)}%;--hud-scale:${clamp(p.combatHudPortraitScale??100,50,300)/100};--hud-flip:${p.combatHudPortraitFlip?-1:1};--tsru-ultimate-x:${clamp(p.ultimateButtonX??50,0,100)}%;--tsru-ultimate-y:${clamp(p.ultimateButtonY??50,0,100)}%;--tsru-ultimate-scale:${clamp(p.ultimateButtonScale??100,50,400)/100};--energy:${energy}%;--energy-color:${esc(color(actor))};--hp:${hpPercent}%;--shield:${shieldPercent}%"><div class="tsru-combat-party-portrait"><img src="${esc(portrait)}" alt=""></div><strong class="tsru-combat-party-name">${esc(actor.name)}</strong><div class="tsru-combat-party-hp"><b class="tsru-combat-party-shield-icon" aria-hidden="true"><i class="fas fa-shield-halved"></i></b><i class="tsru-combat-party-health"></i><span>${hpValue}/${hpMax}</span></div>${talent}<div class="tsru-combat-party-ultimate-wrap"><button type="button" disabled><span class="tsru-hud-orb-fill"></span><img src="${esc(orb)}" alt="">${p.showHudPercent?`<strong>${Math.round(energy)}%</strong>`:''}</button></div>${frame(actor,{...c,summoned})}</article>`;
 }
 function fitPreview(tab){const stage=tab.querySelector('.tms-preview-stage'),card=tab.querySelector('.tms-preview-card'),d=hudDesign();if(!stage||!card||!stage.clientWidth)return;const zoom=Math.min(2.3,(stage.clientWidth-30)/(d.memberWidth+110),(stage.clientHeight-30)/(d.memberHeight+135));card.style.transform=`scale(${Math.max(.1,zoom)})`;card.dataset.zoom=String(zoom);}
 function rawDiceDamage(rolls){
@@ -84,6 +84,16 @@ function color(actor) {
   } catch { return '#aa9be5'; }
 }
 function art(c) { return esc(c.image || 'icons/svg/mystery-man.svg'); }
+function sourceActor(c){
+ if(!c.sourceUuid?.startsWith('Actor.')&&!c.sourceUuid?.startsWith('Compendium.'))return null;
+ try{const document=typeof fromUuidSync==='function'?fromUuidSync(c.sourceUuid):game.actors.get(c.sourceUuid.split('.')[1]);return document?.documentName==='Actor'?document:null;}catch{return null;}
+}
+function memospriteHealth(c){
+ const source=sourceActor(c),attributes=source?.system?.attributes?.hp;
+ if(!attributes)return {hp:clamp(c.hp,0,Math.max(1,Number(c.maxHp)||1)),maxHp:Math.max(1,Number(c.maxHp)||1),linked:false};
+ const maxHp=Math.max(1,Number(attributes.max)||1);
+ return {hp:clamp(attributes.value,0,maxHp),maxHp,linked:true};
+}
 function resourceMarkup(c) {
   if(!c.summoned||!c.showResource) return '';
   const value=clamp(c.resource,0,c.resourceMax), max=clamp(c.resourceMax,1,999);
@@ -92,18 +102,18 @@ function resourceMarkup(c) {
   return `<div class="tms-counter" data-part="resource">${value}/${max}</div>`;
 }
 function frame(actor,c,{preview=false}={}) {
-  const hp=clamp(c.hp/c.maxHp*100,0,100);
+  const health=memospriteHealth(c),hp=clamp(health.hp/health.maxHp*100,0,100);
   const position=boundedFrame(c);
   const layout=['portrait','hpText','resource','abilities'].map(part=>`--${part}-x:${clamp(c[part+'X'],-300,300)}px;--${part}-y:${clamp(c[part+'Y'],-300,300)}px;--${part}-scale:${clamp(c[part+'Scale'],25,300)/100}`).join(';');
   return `<div class="tms-frame ${c.summoned?'is-summoned':'is-idle'}" style="--tms-color:${esc(color(actor))};--frame-width:${clamp(c.frameWidth,90,330)}px;--frame-x:${position.x}px;--frame-y:${position.y}px;--frame-scale:${frameScale(c)/100};--crop-x:${clamp(c.portraitCropX,-150,150)}px;--crop-y:${clamp(c.portraitCropY,-150,150)}px;--crop-scale:${clamp(c.portraitCropScale,25,400)/100};${layout}">
-    ${c.showPortrait||c.summoned&&c.showHpArc?`<div class="tms-portrait-unit" data-part="portrait">${c.showPortrait?`<div class="tms-portrait"><img src="${esc(c.portrait||c.image||'icons/svg/mystery-man.svg')}" alt="${esc(c.name)} portrait"></div>`:''}${c.summoned&&c.showHpArc?`<svg class="tms-hp" viewBox="0 0 70 100" aria-label="${c.hp} of ${c.maxHp} HP"><path class="tms-hp-track" d="M36 15 A35 35 0 0 0 36 85"/><path class="tms-hp-value" d="M36 15 A35 35 0 0 0 36 85" pathLength="100" style="stroke-dasharray:${hp} 100"/></svg>`:''}</div>`:''}
-    ${c.summoned?`${c.showHpNumber?`<div class="tms-hp-number" data-part="hpText">${Math.round(c.hp)} <small>/ ${Math.round(c.maxHp)}</small></div>`:''}${c.showAbilities?`<div class="tms-ability-icons" data-part="abilities">${(c.abilities||[]).slice(0,5).map(a=>`<span title="${esc(`${a.name||'Ability'}${a.text?`: ${a.text}`:''} (cost ${a.cost??0})`)}">${a.icon?`<img src="${esc(a.icon)}" alt="">`:'✦'}<b>${esc(a.name||'Ability')}</b></span>`).join('')}</div>`:''}`:''}
+    ${c.showPortrait||c.summoned&&c.showHpArc?`<div class="tms-portrait-unit" data-part="portrait">${c.showPortrait?`<div class="tms-portrait"><img src="${esc(c.portrait||c.image||'icons/svg/mystery-man.svg')}" alt="${esc(c.name)} portrait"></div>`:''}${c.summoned&&c.showHpArc?`<svg class="tms-hp" viewBox="0 0 70 100" aria-label="${health.hp} of ${health.maxHp} HP"><path class="tms-hp-track" d="M36 85 A35 35 0 0 1 36 15"/><path class="tms-hp-value" d="M36 85 A35 35 0 0 1 36 15" pathLength="100" style="stroke-dasharray:${hp} 100;opacity:${hp>0?1:0}"/></svg>`:''}</div>`:''}
+    ${c.summoned?`${c.showHpNumber?`<div class="tms-hp-number" data-part="hpText">${Math.round(health.hp)} <small>/ ${Math.round(health.maxHp)}</small></div>`:''}${c.showAbilities?`<div class="tms-ability-icons" data-part="abilities">${(c.abilities||[]).slice(0,5).map(a=>`<span title="${esc(`${a.name||'Ability'}${a.text?`: ${a.text}`:''} (cost ${a.cost??0})`)}">${a.icon?`<img src="${esc(a.icon)}" alt="">`:'✦'}<b>${esc(a.name||'Ability')}</b></span>`).join('')}</div>`:''}`:''}
     ${resourceMarkup(c)}
   </div>`;
 }
 const label=(text,name,value,type='text',extra='')=>`<label>${text}<input type="${type}" name="${name}" value="${esc(value)}" ${extra}></label>`;
 function panel(actor) {
- const c=config(actor), gm=game.user.isGM;
+ const c=config(actor), gm=game.user.isGM,health=memospriteHealth(c);
  const abilityRows=c.abilities.map((a,i)=>`<div class="tms-ability" data-index="${i}"><header><b>Ability ${i+1}</b>${gm?'<button type="button" data-action="remove-ability" title="Remove ability">×</button>':''}</header>${label('Name','abilityName',a.name||'')}${label('Description','abilityText',a.text||'')}${label('Damage formula (optional)','abilityDamage',a.damage||'')}${label('Resource cost','abilityCost',a.cost??1,'number','min="0" max="100"')}${label('Icon','abilityIcon',a.icon||'')}<button type="button" data-action="use-ability" data-index="${i}">Use ${esc(a.name||'ability')}</button></div>`).join('');
  return `<section class="tms-tab tab" data-group="primary" data-tab="tms-memosprite" style="--tms-color:${esc(color(actor))}"><header><h2>Memosprite</h2><button type="button" data-action="summon" ${!c.enabled||!canEdit(actor)?'disabled':''}>${c.summoned?'Unsummon memosprite':'Summon memosprite'}</button></header>
  <div class="tms-layout"><div class="tms-fields"><label class="tms-check"><input type="checkbox" name="enabled" ${c.enabled?'checked':''} ${!gm?'disabled':''}> Has a memosprite?</label>
@@ -111,11 +121,11 @@ function panel(actor) {
  ${label('Memosprite name','name',c.name)}${label('Source UUID','sourceUuid',c.sourceUuid)}
  ${label('Tab icon URL','tabIcon',c.tabIcon)}<button type="button" data-pick="tabIcon">Choose tab icon</button>
  ${label('Circular memosprite portrait URL','portrait',c.portrait||c.image)}<button type="button" data-pick="portrait">Choose portrait</button><button type="button" data-action="portrait-editor">Open portrait editor</button>
- <h3>HP and resource</h3><div class="tms-triple">${label('Current HP','hp',c.hp,'number','min="0"')}${label('Maximum HP','maxHp',c.maxHp,'number','min="1"')}</div>
+ <h3>HP and resource</h3><div class="tms-triple">${label('Current HP','hp',health.hp,'number',`min="0" ${health.linked?'disabled':''}`)}${label('Maximum HP','maxHp',health.maxHp,'number',`min="1" ${health.linked?'disabled':''}`)}</div>${health.linked?'<p>HP follows the linked memosprite Actor sheet. Change HP on that Actor.</p>':''}
  <label>Resource display<select name="resourceType"><option value="counter" ${c.resourceType==='counter'?'selected':''}>X/Y counter</option><option value="dots" ${c.resourceType==='dots'?'selected':''}>Up to 3 usage dots</option><option value="percent" ${c.resourceType==='percent'?'selected':''}>Fang percentage</option></select></label>
  <div class="tms-triple">${label('Current resource','resource',c.resource,'number','min="0"')}${label('Maximum resource','resourceMax',c.resourceMax,'number','min="1"')}</div><button type="button" data-action="restore">Restore resource</button>
  <h3>Abilities (up to five)</h3><div data-abilities>${abilityRows}</div>${gm&&c.abilities.length<5?'<button type="button" data-action="add-ability">Add ability</button>':''}
- <h3>Combat HUD frame designer</h3><label class="tms-check"><input type="checkbox" name="showOnHud" ${c.showOnHud?'checked':''} ${!gm?'disabled':''}> Show over this character’s HUD</label>
+ <h3>Combat HUD frame designer</h3><label class="tms-check"><input type="checkbox" name="showOnHud" ${c.showOnHud?'checked':''} ${!gm?'disabled':''}> Show over this character’s HUD</label><label class="tms-check"><input type="checkbox" name="showHudName" ${c.showHudName?'checked':''} ${!gm?'disabled':''}> Show bottom character name on the HUD</label>
  <label class="tms-check"><input type="checkbox" name="showSummonButton" ${c.showSummonButton?'checked':''} ${!gm?'disabled':''}> Show floating Summon Memosprite button for Remembrance</label><button type="button" data-action="show-summon-widget" ${!canEdit(actor)?'disabled':''}>Show floating summon button now</button>
  <h3>Visible HUD elements</h3>${[['showPortrait','Circular portrait'],['showHpArc','Semicircle HP bar'],['showHpNumber','HP value'],['showResource','Value / percentage / dots'],['showAbilities','Ability row']].map(([key,title])=>`<label class="tms-check"><input type="checkbox" name="${key}" ${c[key]?'checked':''} ${!gm?'disabled':''}> ${title}</label>`).join('')}
  <div class="tms-triple">${label('Frame X (px)','frameX',c.frameX,'number')}${label('Frame Y (px)','frameY',c.frameY,'number')}${label('Frame width (px)','frameWidth',c.frameWidth,'number','min="90" max="330"')}</div>
@@ -185,7 +195,7 @@ function inject(app,html) {
    case 'show-summon-widget':await setWidgetLayout(actor.id,{hidden:false});break;
    case 'toggle-element':if(game.user.isGM){const key=action.dataset.element;await save(actor,{[key]:!current[key]});}break;
    case 'summon':if(!current.enabled)return;await save(actor,{summoned:!current.summoned});break;
-   case 'restore':if(game.user.isGM)await save(actor,{resource:current.resourceMax,hp:current.maxHp});break;
+   case 'restore':if(game.user.isGM)await save(actor,{resource:current.resourceMax,...(memospriteHealth(current).linked?{}:{hp:current.maxHp})});break;
    case 'add-ability':if(game.user.isGM)await save(actor,{abilities:[...current.abilities,{name:'New ability',text:'',cost:1,icon:''}].slice(0,5)});break;
    case 'remove-ability':if(game.user.isGM)await save(actor,{abilities:current.abilities.filter((_,i)=>i!==Number(action.closest('[data-index]').dataset.index))});break;
    case 'use-ability':{if(!current.summoned)return ui.notifications.warn('Summon the memosprite first.');const a=current.abilities[Number(action.dataset.index)],cost=clamp(a?.cost,0,100);if(!a||current.resource<cost)return ui.notifications.warn('Not enough memosprite resource.');
@@ -265,8 +275,9 @@ function syncHud(){
   for(const card of host.querySelectorAll('.tsru-combat-party-member[data-actor-id]')){
   const actor=game.actors.get(card.dataset.actorId);if(!actor)continue;const c=config(actor);
   const existing=card.querySelector(':scope > .tms-frame');
+  card.classList.toggle('tms-hide-hud-name',Boolean(c.enabled&&c.showOnHud&&!c.showHudName));
   if(!(c.enabled&&c.showOnHud)){existing?.remove();continue;}
-  const signature=JSON.stringify([c,color(actor),hudDesign()]);
+  const signature=JSON.stringify([c,memospriteHealth(c),color(actor),hudDesign()]);
   if(existing?.dataset.signature!==signature){existing?.remove();card.insertAdjacentHTML('beforeend',frame(actor,c));card.querySelector(':scope > .tms-frame').dataset.signature=signature;}
  }
 }
@@ -289,5 +300,5 @@ function watchSheet(app,html){
 }
 Hooks.on('renderActorSheet',watchSheet);
 Hooks.on('renderApplicationV2',(app,html)=>{if((app.actor??app.document)?.type==='character')watchSheet(app,html);});
-Hooks.on('updateActor',(actor,changes)=>{if(foundry.utils.hasProperty(changes,`flags.${ID}.config`)){for(const app of Object.values(actor.apps??{}))app.render(false);syncHud();refreshSummonWidgets();}else if(foundry.utils.hasProperty(changes,`flags.${HSR}.ultimate`))refreshSummonWidgets();});
+Hooks.on('updateActor',(actor,changes)=>{if(foundry.utils.hasProperty(changes,`flags.${ID}.config`)){for(const app of Object.values(actor.apps??{}))app.render(false);syncHud();refreshSummonWidgets();}else if(foundry.utils.hasProperty(changes,'system.attributes.hp')||Object.keys(changes).some(key=>key.startsWith('system.attributes.hp.'))){for(const summoner of game.actors.filter(a=>config(a).sourceUuid===actor.uuid))for(const app of Object.values(summoner.apps??{}))app.render(false);syncHud();}else if(foundry.utils.hasProperty(changes,`flags.${HSR}.ultimate`))refreshSummonWidgets();});
 Hooks.on('updateSetting',setting=>{if(setting?.key===`${HSR}.combatHudDesign`)syncHud();if([`${HSR}.selectedMainCharacterId`,`${HSR}.partySelections`,`${HSR}.paths`,`${ID}.summonWidgetLayouts`].includes(setting?.key))refreshSummonWidgets();});
