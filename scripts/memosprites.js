@@ -1,7 +1,7 @@
 const ID = 'telys-memosprites';
 const HSR = 'telys-star-rail-ultimates';
 const DEFAULT_TAB_ICON='<svg class="tms-tab-symbol" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 19.4 11.6 29 15l-9.6 3.4L16 28l-3.4-9.6L3 15l9.6-3.4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="16" cy="15" r="4.2" fill="currentColor"/><path d="M24 3v5M21.5 5.5h5M26 23v5M23.5 25.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
-const DEFAULT = {enabled:false, summoned:false, sourceUuid:'', name:'Memosprite', image:'', portrait:'', tabIcon:'', imageX:50,imageY:50,imageScale:100, hp:20,maxHp:20, resourceType:'counter',resource:0,resourceMax:3, abilities:[],showOnHud:true,frameX:28,frameY:4,frameScale:75,frameWidth:145};
+const DEFAULT = {enabled:false, summoned:false, sourceUuid:'', name:'Memosprite', image:'', portrait:'', tabIcon:'', imageX:50,imageY:50,imageScale:100, hp:20,maxHp:20, resourceType:'counter',resource:0,resourceMax:3, abilities:[],showOnHud:true,frameX:28,frameY:4,frameScale:75,frameWidth:145,portraitX:0,portraitY:0,portraitScale:100,hpTextX:0,hpTextY:0,hpTextScale:100,resourceX:0,resourceY:0,resourceScale:100,abilitiesX:0,abilitiesY:0,abilitiesScale:100};
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clamp = (v,min,max) => Math.max(min,Math.min(max,Number(v)||0));
 const config = actor => ({...DEFAULT,...actor.getFlag(ID,'config'),abilities:(actor.getFlag(ID,'config')?.abilities ?? []).slice(0,5)});
@@ -87,18 +87,18 @@ function art(c) { return esc(c.image || 'icons/svg/mystery-man.svg'); }
 function resourceMarkup(c) {
   if(!c.summoned) return '';
   const value=clamp(c.resource,0,c.resourceMax), max=clamp(c.resourceMax,1,999);
-  if(c.resourceType==='dots') return `<div class="tms-dots" aria-label="${value} of ${max} charges">${Array.from({length:Math.min(max,3)},(_,i)=>`<i class="${i<value?'lit':''}"></i>`).join('')}</div>`;
-  if(c.resourceType==='percent') return `<div class="tms-fang" style="--fill:${clamp(value,0,100)}%"><span>${Math.round(value)}%</span></div>`;
-  return `<div class="tms-counter">${value}/${max}</div>`;
+  if(c.resourceType==='dots') return `<div class="tms-dots" data-part="resource" aria-label="${value} of ${max} charges">${Array.from({length:Math.min(max,3)},(_,i)=>`<i class="${i<value?'lit':''}"></i>`).join('')}</div>`;
+  if(c.resourceType==='percent') return `<div class="tms-fang" data-part="resource" style="--fill:${clamp(value,0,100)}%"><span>${Math.round(value)}%</span></div>`;
+  return `<div class="tms-counter" data-part="resource">${value}/${max}</div>`;
 }
 function frame(actor,c,{preview=false}={}) {
   const hp=clamp(c.hp/c.maxHp*100,0,100);
   const position=boundedFrame(c);
-  return `<div class="tms-frame ${c.summoned?'is-summoned':'is-idle'}" style="--tms-color:${esc(color(actor))};--art-x:${clamp(c.imageX,-100,200)}%;--art-y:${clamp(c.imageY,-100,200)}%;--art-scale:${clamp(c.imageScale,25,400)/100};--health:${hp}%;--frame-width:${clamp(c.frameWidth,90,330)}px;--frame-x:${position.x}px;--frame-y:${position.y}px;--frame-scale:${frameScale(c)/100};">
-    <div class="tms-art"><img src="${art(c)}" alt="${esc(c.name)}"></div>
-    <div class="tms-portrait"><img src="${esc(c.portrait||c.image||'icons/svg/mystery-man.svg')}" alt="${esc(c.name)} portrait"></div>
-    ${c.summoned?`<svg class="tms-hp" viewBox="0 0 58 105" aria-label="${c.hp} of ${c.maxHp} HP"><path class="tms-hp-track" d="M49 5 C -12 18 -12 87 49 100"/><path class="tms-hp-value" d="M49 5 C -12 18 -12 87 49 100" pathLength="100" style="stroke-dasharray:${hp} 100"/></svg><div class="tms-hp-number">${Math.round(c.hp)} <small>/ ${Math.round(c.maxHp)}</small></div><div class="tms-ability-icons">${(c.abilities||[]).slice(0,5).map(a=>`<span title="${esc(`${a.name||'Ability'}${a.text?`: ${a.text}`:''} (cost ${a.cost??0})`)}">${a.icon?`<img src="${esc(a.icon)}" alt="">`:'✦'}<b>${esc(a.name||'Ability')}</b></span>`).join('')}</div>`:''}
-    <strong class="tms-name">${esc(c.name)}</strong>${resourceMarkup(c)}
+  const layout=['portrait','hpText','resource','abilities'].map(part=>`--${part}-x:${clamp(c[part+'X'],-300,300)}px;--${part}-y:${clamp(c[part+'Y'],-300,300)}px;--${part}-scale:${clamp(c[part+'Scale'],25,300)/100}`).join(';');
+  return `<div class="tms-frame ${c.summoned?'is-summoned':'is-idle'}" style="--tms-color:${esc(color(actor))};--frame-width:${clamp(c.frameWidth,90,330)}px;--frame-x:${position.x}px;--frame-y:${position.y}px;--frame-scale:${frameScale(c)/100};${layout}">
+    <div class="tms-portrait-unit" data-part="portrait"><div class="tms-portrait"><img src="${esc(c.portrait||c.image||'icons/svg/mystery-man.svg')}" alt="${esc(c.name)} portrait"></div>${c.summoned?`<svg class="tms-hp" viewBox="0 0 70 100" aria-label="${c.hp} of ${c.maxHp} HP"><path class="tms-hp-track" d="M36 15 A35 35 0 0 0 36 85"/><path class="tms-hp-value" d="M36 15 A35 35 0 0 0 36 85" pathLength="100" style="stroke-dasharray:${hp} 100"/></svg>`:''}</div>
+    ${c.summoned?`<div class="tms-hp-number" data-part="hpText">${Math.round(c.hp)} <small>/ ${Math.round(c.maxHp)}</small></div><div class="tms-ability-icons" data-part="abilities">${(c.abilities||[]).slice(0,5).map(a=>`<span title="${esc(`${a.name||'Ability'}${a.text?`: ${a.text}`:''} (cost ${a.cost??0})`)}">${a.icon?`<img src="${esc(a.icon)}" alt="">`:'✦'}<b>${esc(a.name||'Ability')}</b></span>`).join('')}</div>`:''}
+    ${resourceMarkup(c)}
   </div>`;
 }
 const label=(text,name,value,type='text',extra='')=>`<label>${text}<input type="${type}" name="${name}" value="${esc(value)}" ${extra}></label>`;
@@ -110,16 +110,15 @@ function panel(actor) {
  <div class="tms-source" data-drop-source><strong>Drag an Actor or Item here</strong><span>${esc(c.sourceUuid||'No source selected')}</span></div>
  ${label('Memosprite name','name',c.name)}${label('Source UUID','sourceUuid',c.sourceUuid)}
  ${label('Tab icon URL','tabIcon',c.tabIcon)}<button type="button" data-pick="tabIcon">Choose tab icon</button>
- ${label('Artwork URL','image',c.image)}<button type="button" data-pick="image">Choose artwork</button>
- ${label('Circular portrait URL (defaults to artwork)','portrait',c.portrait)}<button type="button" data-pick="portrait">Choose portrait</button>
- <div class="tms-triple">${label('Artwork X','imageX',c.imageX,'number','min="-100" max="200"')}${label('Artwork Y','imageY',c.imageY,'number','min="-100" max="200"')}${label('Artwork scale %','imageScale',c.imageScale,'number','min="25" max="400"')}</div>
+ ${label('Circular memosprite portrait URL','portrait',c.portrait||c.image)}<button type="button" data-pick="portrait">Choose portrait</button>
  <h3>HP and resource</h3><div class="tms-triple">${label('Current HP','hp',c.hp,'number','min="0"')}${label('Maximum HP','maxHp',c.maxHp,'number','min="1"')}</div>
  <label>Resource display<select name="resourceType"><option value="counter" ${c.resourceType==='counter'?'selected':''}>X/Y counter</option><option value="dots" ${c.resourceType==='dots'?'selected':''}>Up to 3 usage dots</option><option value="percent" ${c.resourceType==='percent'?'selected':''}>Fang percentage</option></select></label>
  <div class="tms-triple">${label('Current resource','resource',c.resource,'number','min="0"')}${label('Maximum resource','resourceMax',c.resourceMax,'number','min="1"')}</div><button type="button" data-action="restore">Restore resource</button>
  <h3>Abilities (up to five)</h3><div data-abilities>${abilityRows}</div>${gm&&c.abilities.length<5?'<button type="button" data-action="add-ability">Add ability</button>':''}
  <h3>Combat HUD frame designer</h3><label class="tms-check"><input type="checkbox" name="showOnHud" ${c.showOnHud?'checked':''} ${!gm?'disabled':''}> Show over this character’s HUD</label>
  <div class="tms-triple">${label('Frame X (px)','frameX',c.frameX,'number')}${label('Frame Y (px)','frameY',c.frameY,'number')}${label('Frame width (px)','frameWidth',c.frameWidth,'number','min="90" max="330"')}</div>
- <p>Drag the frame in the preview to position it over the character card; scroll on artwork to zoom its image. Settings save automatically.</p></div>
+ <h3>Place each memosprite element</h3>${[['portrait','Portrait + HP arc'],['hpText','HP numbers'],['resource','Resource counter'],['abilities','Abilities']].map(([key,title])=>`<div class="tms-part-editor"><strong>${title}</strong><div class="tms-triple">${label('X (px)',key+'X',c[key+'X'],'number','min="-300" max="300"')}${label('Y (px)',key+'Y',c[key+'Y'],'number','min="-300" max="300"')}${label('Scale %',key+'Scale',c[key+'Scale'],'number','min="25" max="300"')}</div></div>`).join('')}
+ <p>Drag an element in the preview to place it. Scroll over an element to scale it; drag empty space in the memosprite frame to move everything together. Settings save automatically.</p></div>
  <div class="tms-preview"><h3>Frame preview</h3><p>Uses ${esc(actor.name)}’s current HSR combat HUD layout. Preview shows the summoned sprite so you can design its HP and resources.</p><label class="tms-frame-scale">Whole memosprite HUD scale <input type="range" name="frameScale" min="30" max="250" value="${c.frameScale}"><output data-frame-scale>${c.frameScale}%</output></label><label class="tms-preview-toggle"><input type="checkbox" data-preview-summoned checked> Preview summoned</label><div class="tms-preview-stage"><div class="tms-preview-card">${hudPreview(actor,c)}</div></div><div class="tms-preview-abilities">${abilitySummary(c)}</div></div></div></section>`;
 }
 function abilitySummary(c){return c.abilities.length?c.abilities.map(a=>`<div><strong>${a.icon?`<img src="${esc(a.icon)}" alt="">`:'✦'} ${esc(a.name||'Ability')}</strong><span>Cost ${clamp(a.cost,0,100)}${a.damage?` · ${esc(a.damage)} damage`:''}</span>${a.text?`<p>${esc(a.text)}</p>`:''}</div>`).join(''):'<p>Add abilities to show their icons, costs, and descriptions here.</p>';}
@@ -179,10 +178,10 @@ function inject(app,html) {
  });
  tab.addEventListener('dragover',e=>{if(e.target.closest('[data-drop-source]'))e.preventDefault();});
  tab.addEventListener('drop',async e=>{if(!e.target.closest('[data-drop-source]')||!game.user.isGM)return;e.preventDefault();e.stopPropagation();try{const data=TextEditor.getDragEventData(e),uuid=data.uuid||(data.type&&data.id?`${data.type}.${data.id}`:null),doc=uuid?await fromUuid(uuid):null;if(!doc||!['Actor','Item'].includes(doc.documentName))throw Error('Drop an Actor or Item.');await save(actor,{sourceUuid:doc.uuid,name:doc.name,image:doc.img||config(actor).image});app.render(false);}catch(err){ui.notifications.warn(err.message);}});
- let drag=null;tab.addEventListener('pointerdown',e=>{if(!game.user.isGM||!e.target.closest('.tms-summoner-card>.tms-frame')||e.target.closest('button,input'))return;drag={x:e.clientX,y:e.clientY,left:Number(tab.querySelector('[name=frameX]').value),top:Number(tab.querySelector('[name=frameY]').value),zoom:Number(tab.querySelector('.tms-preview-card').dataset.zoom)||1};tab.setPointerCapture(e.pointerId);});
- tab.addEventListener('pointermove',e=>{if(!drag)return;const draft=collect();const position=boundedFrame({...draft,frameX:drag.left+(e.clientX-drag.x)/drag.zoom,frameY:drag.top+(e.clientY-drag.y)/drag.zoom});tab.querySelector('[name=frameX]').value=Math.round(position.x);tab.querySelector('[name=frameY]').value=Math.round(position.y);preview();});
+ let drag=null;tab.addEventListener('pointerdown',e=>{if(!game.user.isGM||!e.target.closest('.tms-summoner-card>.tms-frame')||e.target.closest('button,input'))return;const part=e.target.closest('[data-part]')?.dataset.part??'frame',xKey=part==='frame'?'frameX':part+'X',yKey=part==='frame'?'frameY':part+'Y';drag={x:e.clientX,y:e.clientY,part,xKey,yKey,left:Number(tab.querySelector(`[name="${xKey}"]`).value),top:Number(tab.querySelector(`[name="${yKey}"]`).value),zoom:(Number(tab.querySelector('.tms-preview-card').dataset.zoom)||1)*(part==='frame'?1:frameScale(collect())/100)};tab.setPointerCapture(e.pointerId);});
+ tab.addEventListener('pointermove',e=>{if(!drag)return;let x=drag.left+(e.clientX-drag.x)/drag.zoom,y=drag.top+(e.clientY-drag.y)/drag.zoom;if(drag.part==='frame'){const position=boundedFrame({...collect(),frameX:x,frameY:y});x=position.x;y=position.y;}tab.querySelector(`[name="${drag.xKey}"]`).value=Math.round(clamp(x,-300,300));tab.querySelector(`[name="${drag.yKey}"]`).value=Math.round(clamp(y,-300,300));preview();});
  tab.addEventListener('pointerup',()=>{if(drag){drag=null;persist();}});
- tab.addEventListener('wheel',e=>{if(!e.target.closest('.tms-art')||!game.user.isGM)return;e.preventDefault();const input=tab.querySelector('[name=imageScale]');input.value=clamp(Number(input.value)+(e.deltaY<0?5:-5),25,400);preview();persist();},{passive:false});
+ tab.addEventListener('wheel',e=>{const part=e.target.closest('.tms-summoner-card [data-part]')?.dataset.part;if(!part||!game.user.isGM)return;e.preventDefault();const input=tab.querySelector(`[name="${part}Scale"]`);input.value=clamp(Number(input.value)+(e.deltaY<0?5:-5),25,300);preview();persist();},{passive:false});
 }
 function addSettingsShortcut(root,control){
  const settings=root.querySelector('.tsru-sheet-tab[data-tab="tsru-ultimate"]');
