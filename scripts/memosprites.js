@@ -118,7 +118,7 @@ function panel(actor) {
  return `<section class="tms-tab tab" data-group="primary" data-tab="tms-memosprite" style="--tms-color:${esc(color(actor))}"><header><h2>Memosprite</h2><button type="button" data-action="summon" ${!c.enabled||!canEdit(actor)?'disabled':''}>${c.summoned?'Unsummon memosprite':'Summon memosprite'}</button></header>
  <div class="tms-layout"><div class="tms-fields"><label class="tms-check"><input type="checkbox" name="enabled" ${c.enabled?'checked':''} ${!gm?'disabled':''}> Has a memosprite?</label>
  <div class="tms-source" data-drop-source><strong>Drag an Actor or Item here</strong><span>${esc(c.sourceUuid||'No source selected')}</span></div>
- ${label('Memosprite name','name',c.name)}${label('Source UUID','sourceUuid',c.sourceUuid)}
+ ${label('Memosprite name','tmsMemospriteName',c.name)}${label('Source UUID','sourceUuid',c.sourceUuid)}
  ${label('Tab icon URL','tabIcon',c.tabIcon)}<button type="button" data-pick="tabIcon">Choose tab icon</button>
  ${label('Circular memosprite portrait URL','portrait',c.portrait||c.image)}<button type="button" data-pick="portrait">Choose portrait</button><button type="button" data-action="portrait-editor">Open portrait editor</button>
  <h3>HP and resource</h3><div class="tms-triple">${label('Current HP','hp',health.hp,'number',`min="0" ${health.linked?'disabled':''}`)}${label('Maximum HP','maxHp',health.maxHp,'number',`min="1" ${health.linked?'disabled':''}`)}</div>${health.linked?'<p>HP follows the linked memosprite Actor sheet. Change HP on that Actor.</p>':''}
@@ -181,7 +181,7 @@ function inject(app,html) {
  addSettingsShortcut(root,control);
  requestAnimationFrame(()=>{if(root.isConnected)nav.scrollTop=nav.scrollHeight;});
  let timer;
- const collect=()=>{const patch={};for(const input of tab.querySelectorAll('[name]')){if(input.closest('.tms-ability'))continue;patch[input.name]=input.type==='checkbox'?input.checked:input.type==='number'?Number(input.value):input.value;}
+ const collect=()=>{const patch={};for(const input of tab.querySelectorAll('[name]')){if(input.closest('.tms-ability'))continue;const key=input.name==='tmsMemospriteName'?'name':input.name;patch[key]=input.type==='checkbox'?input.checked:input.type==='number'?Number(input.value):input.value;}
  patch.abilities=[...tab.querySelectorAll('.tms-ability')].map(row=>({name:row.querySelector('[name=abilityName]').value,text:row.querySelector('[name=abilityText]').value,damage:row.querySelector('[name=abilityDamage]').value,cost:Number(row.querySelector('[name=abilityCost]').value)||0,icon:row.querySelector('[name=abilityIcon]').value}));return patch;};
  const preview=()=>{const draft={...config(actor),...collect()};draft.frameScale=frameScale(draft);tab.querySelector('[name=frameScale]').value=draft.frameScale;tab.querySelector('[data-frame-scale]').textContent=`${draft.frameScale}%`;const position=boundedFrame(draft);draft.frameX=position.x;draft.frameY=position.y;tab.querySelector('[name=frameX]').value=position.x;tab.querySelector('[name=frameY]').value=position.y;tab.style.setProperty('--tms-color',color(actor));tab.querySelector('.tms-preview-card').innerHTML=hudPreview(actor,draft,{summoned:tab.querySelector('[data-preview-summoned]').checked});tab.querySelector('.tms-preview-abilities').innerHTML=abilitySummary(draft);fitPreview(tab);};
  const persist=()=>{clearTimeout(timer);timer=setTimeout(()=>save(actor,collect()).catch(console.error),400);};
