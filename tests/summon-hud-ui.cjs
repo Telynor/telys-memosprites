@@ -8,7 +8,7 @@ const http=require('node:http');
 const root=path.resolve(__dirname,'..');
 const core=path.resolve(process.env.ULTIMATES_SOURCE_ROOT||path.join(root,'../ultimates-native-placement'));
 const bootstrap=`
-const ID='telys-memosprites',HSR='telys-star-rail-ultimates';window.ID=ID;
+const ID='telys-memosprites',HSR='telys-star-rail-ultimates';window.ID=ID;window.HSR=HSR;
 const get=(o,p)=>Object.hasOwn(o??{},p)?o[p]:p.split('.').reduce((v,k)=>v?.[k],o);
 const collection=rows=>{rows.get=id=>rows.find(row=>row.id===id);return rows};
 const hooks=new Map();window.Hooks={on(name,fn){const list=hooks.get(name)??[];list.push(fn);hooks.set(name,list)},once(name,fn){this.on(name,fn)},call(name,...args){let result=true;for(const fn of hooks.get(name)??[])if(fn(...args)===false)result=false;return result},callAll(name,...args){for(const fn of hooks.get(name)??[])fn(...args)}};
