@@ -1,6 +1,6 @@
 # Tely’s Memosprites
 
-Foundry VTT v14 addon for D&D 5e 5.x, requiring Tely’s Star Rail Ultimates **3.14.0-preview.19 or later**. Update both modules and reload the world.
+Foundry VTT v14 addon for D&D 5e, requiring Tely’s Star Rail Ultimates **3.14.0-preview.22 or later**. Update both modules and reload the world.
 
 Enable **Has a memosprite?** on a character’s Memosprite tab. Every Path can use the configuration, floating Summon button and hotbar macro. Drop a world Actor as the source, choose a circular portrait, configure up to five abilities and resources, and position the companion frame on the HSR combat party HUD. Changes save automatically. Owners can summon, dismiss and use abilities; the GM configures the kit.
 
@@ -16,7 +16,7 @@ The newest creature summoned by a character temporarily supplies its companion H
 
 External summons use their own colored Actor artwork with a neutral portrait crop. A native memosprite summon keeps the configured portrait/crop. The HP semicircle follows the summoned token’s synthetic Actor; changing a template or another creature copy’s HP does not change that token’s display. Temporary artwork and HP are display mappings and do not replace the saved memosprite design.
 
-At **0 HP**, token deletion or scene removal, the active mapping ends. The HP arc and number hide, and an enabled memosprite returns to its saved grayscale portrait, crop, layout and defaults. A character without an enabled memosprite can show the temporary companion overlay while its summon is alive; that temporary overlay disappears afterward. Healing a creature after its mapping ended does not silently reactivate the binding. A new summon creates a new mapping.
+New summons keep their portrait and HP semicircle even when their initial HP is 0 or still being prepared. The HUD follows the token’s real HP; summoning does not heal the creature or change its statistics. After the creature has positive HP, dropping to **0 HP** ends the active mapping. Token deletion or scene removal also ends it. The HP arc and number hide, and an enabled memosprite returns to its saved grayscale portrait, crop, layout and defaults. A character without an enabled memosprite can show the temporary companion overlay while its summon is active; that temporary overlay disappears afterward. Healing a creature after its mapping ended does not silently reactivate the binding. A new summon creates a new mapping.
 
 There is one active companion HP slot: the newest summon wins. When it ends, the HUD returns to defaults rather than switching to an older creature or combining their HP. An older creature’s death/deletion cannot clear a newer binding. Summoner and token references include their scenes, and the active reference persists across reloads. A stale reference is cleared when the GM reconnects.
 

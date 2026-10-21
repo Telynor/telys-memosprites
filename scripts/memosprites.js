@@ -8,7 +8,7 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 const clamp = (v,min,max) => Math.max(min,Math.min(max,Number(v)||0));
 const config = actor => {
  const stored=actor.getFlag(ID,'config')??{},base={...DEFAULT,...stored,abilities:(stored.abilities??[]).slice(0,5)};
- const token=summonLinks.summonedToken(actor,base),summoned=Boolean(token?.actor&&Number(token.actor.system?.attributes?.hp?.value)>0);
+ const token=summonLinks.summonView(actor,base).token,summoned=Boolean(token);
  return {...base,summoned,summonedTokenId:summoned?token.id:''};
 };
 const canEdit = actor => game.user.isGM || actor.isOwner;

@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {bindSummon,clearSummon,reconcileSummons,summonOwner,summonView} from '../scripts/summon-links.mjs';
+import {bindSummon,clearSummon,reconcileSummons,summonOwner,summonView,installSummonLinks} from '../scripts/summon-links.mjs';
 const ID='telys-memosprites',HSR='telys-star-rail-ultimates';
 function collection(values=[]){values.get=id=>values.find(v=>v.id===id);return values;}
 function fixture(){
@@ -69,4 +69,52 @@ test('a queued stale-reference cleanup cannot clear a newly queued summon',async
   w.scene.tokens.splice(w.scene.tokens.indexOf(older),1);
   await Promise.all([bindSummon(w.actor,newer),reconcileSummons()]);
   assert.equal(summonView(w.actor,w.config).token,newer);
+});
+
+test('a new zero-HP spell summon stays linked through its own flag update, then resets only after losing its live HP',async()=>{
+  const w=fixture(),hooks=new Map(),summon=w.token('magellenica',0,80),refreshes=[];
+  globalThis.Hooks={on(name,fn){const list=hooks.get(name)??[];list.push(fn);hooks.set(name,list)}};
+  const fire=(name,...args)=>{for(const fn of hooks.get(name)??[])fn(...args)};
+  const settle=async()=>{for(let i=0;i<8;i++)await new Promise(setImmediate)};
+  const save=w.actor.setFlag;
+  w.actor.setFlag=async function(scope,key,value){await save.call(this,scope,key,value);fire('updateActor',this,{flags:{[scope]:{[key]:value}}},{});};
+  installSummonLinks(()=>refreshes.push(summonView(w.actor,w.config)));
+  fire('createToken',summon);fire('dnd5e.postSummon',{actor:w.actor},{},[summon],{});await settle();
+  assert.equal(w.actor.flags[ID].activeSummon.status,'active','saving the binding cannot classify initial 0 HP as a defeat');
+  let view=summonView(w.actor,w.config);
+  assert.equal(view.token,summon);assert.equal(view.config.portrait,'magellenica.webp');assert.equal(view.config.hp,0);assert.equal(view.config.maxHp,80);
+  summon.actor.system.attributes.hp.value=40;
+  fire('updateActor',summon.actor,{system:{attributes:{hp:{value:40}}}},{dnd5e:{hp:{value:0}}});await settle();
+  assert.equal(summonView(w.actor,w.config).config.hp,40);
+  assert.equal(w.actor.flags[ID].activeSummon.wasAlive,true,'observed positive HP survives a client reload');
+  summon.actor.system.attributes.hp.value=0;
+  fire('updateActor',summon.actor,{system:{attributes:{hp:{value:0}}}},{dnd5e:{hp:{value:40}}});await settle();
+  assert.equal(w.actor.flags[ID].activeSummon.status,'idle');assert.equal(summonView(w.actor,w.config).config.portrait,'default.webp');
+  summon.actor.system.attributes.hp.value=30;fire('updateActor',summon.actor,{system:{attributes:{hp:{value:30}}}},{});await settle();
+  assert.equal(summonView(w.actor,w.config).token,null);assert.deepEqual(w.actor.flags[ID].config,w.config);
+  assert.ok(refreshes.some(view=>view.config.portrait==='magellenica.webp'));
+});
+
+test('unprepared HP cannot defeat a summon that was previously alive',async()=>{
+  const w=fixture(),summon=w.token('creature');await bindSummon(w.actor,summon);
+  summon.actor.system.attributes.hp.value=null;await reconcileSummons();
+  assert.equal(w.actor.flags[ID].activeSummon.status,'active');
+  summon.actor.system.attributes.hp.value=24;assert.equal(summonView(w.actor,w.config).config.hp,24);
+});
+
+test('a render can observe live HP before the update hook persists it, without reviving a defeated binding',async()=>{
+  const w=fixture(),summon=w.token('creature',0,80);await bindSummon(w.actor,summon);
+  assert.equal(summonView(w.actor,w.config).token,summon);
+  summon.actor.system.attributes.hp.value=40;assert.equal(summonView(w.actor,w.config).config.hp,40);
+  summon.actor.system.attributes.hp.value=0;assert.equal(summonView(w.actor,w.config).token,null);
+  await reconcileSummons();assert.equal(w.actor.flags[ID].activeSummon.status,'idle');
+});
+
+test('D&D5e previous-HP update metadata detects a lethal hit between renders',async()=>{
+  const w=fixture(),hooks=new Map(),summon=w.token('creature',0,80);
+  globalThis.Hooks={on(name,fn){const list=hooks.get(name)??[];list.push(fn);hooks.set(name,list)}};
+  installSummonLinks(()=>{});await bindSummon(w.actor,summon);
+  for(const fn of hooks.get('updateActor'))fn(summon.actor,{system:{attributes:{hp:{value:0}}}},{dnd5e:{hp:{value:40}}});
+  for(let i=0;i<8;i++)await new Promise(setImmediate);
+  assert.equal(w.actor.flags[ID].activeSummon.status,'idle');
 });

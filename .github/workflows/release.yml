@@ -17,6 +17,25 @@ jobs:
         run: |
           node --check scripts/memosprites.js
           npm test
+      - name: Check out the released Skill spell coordinator
+        uses: actions/checkout@v4
+        with:
+          repository: Telynor/telys-star-rail-ultimates-v2
+          ref: v3.14.0-preview.22
+          path: .test-ultimates
+          persist-credentials: false
+      - name: Check the live summon HUD in Chromium
+        run: |
+          npm install --no-save --package-lock=false --no-audit --no-fund playwright
+          npx playwright install --with-deps chromium --only-shell
+          ULTIMATES_SOURCE_ROOT=.test-ultimates node tests/summon-hud-ui.cjs
+      - name: Upload summon HUD screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: summon-hud-screenshots
+          path: summon-hud-*.png
+          if-no-files-found: ignore
       - name: Package module
         run: |
           version="$(node -p "JSON.parse(require('fs').readFileSync('module.json')).version")"
