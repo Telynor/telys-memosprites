@@ -236,7 +236,6 @@ function mainCharacter(){
 const SUMMON_SOCKET=`module.${ID}`;
 const pendingSummons=new Map();
 let summonPicker=null;
-function gridSize(scene){const grid=scene.grid;return {x:Number(grid.sizeX||grid.size)||canvas.dimensions.size,y:Number(grid.sizeY||grid.size)||canvas.dimensions.size};}
 function summonerToken(actor){
  const active=canvas.tokens?.controlled?.find(t=>t.actor?.id===actor.id);
  return active??canvas.tokens?.placeables?.find(t=>t.actor?.id===actor.id&&t.document?.combatant)??canvas.tokens?.placeables?.find(t=>t.actor?.id===actor.id);
@@ -248,7 +247,10 @@ function adjacentSquares(actor,scene=canvas.scene){
  if(!caster||!source)return [];
  return adjacentPlacements(scene,caster,source.prototypeToken??{width:1,height:1});
 }
-function stopSummonPicker(){if(!summonPicker)return;summonPicker.graphics.destroy();summonPicker.ghost?.destroy();if(summonPicker.cancelKey)document.removeEventListener("keydown",summonPicker.cancelKey,true);summonPicker=null;}
+function stopSummonPicker(){
+ if(!summonPicker)return;
+ game.modules.get(HSR)?.api?.summoning?.cancelNativeSummonPlacement?.(summonPicker);
+}
 async function summonAction(actor,action,position){
  if(!actor||!canEdit(actor))throw Error('You do not own this character.');
  if(game.user.isGM)return performSummonAction(actor,action,position);
@@ -288,7 +290,7 @@ async function performSummonActionNow(actor,action,position,{sceneId=canvas.scen
  const caster=casterTokenId?scene.tokens.get(casterTokenId):summonerToken(actor)?.document?.parent?.id===scene.id?summonerToken(actor).document:scene.tokens.find(t=>t.actorId===actor.id);
  if(!caster||caster.actorId!==actor.id)throw Error('Place the summoner’s token on this scene first.');
  validateAdjacentPlacement(scene,caster,source.prototypeToken,position);
- const tokenDocument=await source.getTokenDocument({x:position.x,y:position.y,actorLink:false,elevation:Number(caster.elevation)||0,...(caster.level?{level:caster.level.id??caster.level}:{})});
+ const tokenDocument=await source.getTokenDocument({x:position.x,y:position.y,...(Number.isFinite(position.rotation)?{rotation:position.rotation}:{}),actorLink:false,elevation:Number(caster.elevation)||0,...(caster.level?{level:caster.level.id??caster.level}:{})});
  const tokenData=tokenDocument.toObject();
  tokenData.x=position.x;tokenData.y=position.y;tokenData.actorId=source.id;tokenData.actorLink=false;
  tokenData.flags={...tokenData.flags,[ID]:{...tokenData.flags?.[ID],summonerId:actor.id,summonerUuid:actor.uuid},[HSR]:{...tokenData.flags?.[HSR],summonOwner:{casterId:actor.id,casterUuid:actor.uuid,casterTokenId:caster.id,createdAt:Date.now()}}};
@@ -306,36 +308,29 @@ async function performSummonActionNow(actor,action,position,{sceneId=canvas.scen
   void game.modules.get(HSR)?.api?.summoning?.playSummonAnimation?.(created);
  }catch(error){await scene.deleteEmbeddedDocuments('Token',[created.id]);throw error;}
 }
-function openSummonPicker(actor){
+async function openSummonPicker(actor){
  if(!canvas?.ready||!canvas.scene)throw Error('Open the battle map first.');
- const c=config(actor);
+ if(!actor||!canEdit(actor))throw Error('You do not own this character.');
+ const c=config(actor),source=sourceActor(c),scene=canvas.scene;
  if(!c.enabled||!hasMemosprite(actor))throw Error('Enable Has a memosprite? on this character first.');
- if(!sourceActor(c)||!game.actors.get(sourceActor(c).id))throw Error('Drag a world Actor into the memosprite menu first.');
- const squares=adjacentSquares(actor);
- if(!squares.length)throw Error('Cannot Fit: no adjacent placement can contain this memosprite’s full size without crossing a lighting barrier or overlapping a creature.');
- stopSummonPicker();
- const graphics=new PIXI.Graphics(),ghost=new PIXI.Graphics();graphics.eventMode='static';ghost.eventMode='none';canvas.stage.addChild(ghost);canvas.stage.addChild(graphics);
- const cancelKey=event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();stopSummonPicker();}};document.addEventListener('keydown',cancelKey,true);
- summonPicker={graphics,ghost,actorId:actor.id,cancelKey};
- const {x:gx,y:gy}=gridSize(canvas.scene);
- for(const square of squares){
-  graphics.rect(square.x+2,square.y+2,gx-4,gy-4).fill({color:0x65d9ff,alpha:.32});
-  graphics.rect(square.x+2,square.y+2,gx-4,gy-4).stroke({color:0xb1f0ff,width:3,alpha:.95});
- }
- graphics.on('pointermove',event=>{const local=canvas.stage.toLocal(event.global),square=squares.find(s=>local.x>=s.x&&local.x<s.x+gx&&local.y>=s.y&&local.y<s.y+gy);ghost.clear();if(square)ghost.rect(square.x+1,square.y+1,square.width*gx-2,square.height*gy-2).stroke({color:0xb1f0ff,width:3,alpha:.95});});
- graphics.on('pointerout',()=>ghost.clear());
- graphics.on('pointertap',async event=>{
-  const point=event.global,local=canvas.stage.toLocal(point);
-  const square=squares.find(s=>local.x>=s.x&&local.x<s.x+gx&&local.y>=s.y&&local.y<s.y+gy);
-  if(!square)return;
-  event.stopPropagation();stopSummonPicker();
-  try{await summonAction(actor,'summon',square);}catch(error){ui.notifications.error(error.message);}
- });
- ui.notifications.info('Choose a highlighted anchor square. The outline shows the full creature footprint. Escape cancels.');
+ if(!source||!game.actors.get(source.id))throw Error('Drag a world Actor into the memosprite menu first.');
+ const rules=game.modules.get(HSR)?.api?.summoning;
+ if(!rules?.chooseNativeSummonPositions)throw Error('Update Tely’s Star Rail Ultimates to preview.22 or later for native summon placement.');
+ if(summonPicker||rules.isNativeSummonPlacementActive?.())return ui.notifications.warn('Finish or cancel the current summon placement first.');
+ const caster=summonerToken(actor)?.document??scene.tokens.find(t=>t.actorId===actor.id);
+ if(!caster||caster.actorId!==actor.id)throw Error('Place the summoner’s token on this scene first.');
+ if(!adjacentSquares(actor,scene).length)throw Error('Cannot Fit: no adjacent placement has space for this memosprite.');
+ summonPicker=actor.uuid??actor.id;
+ try{
+  const positions=await rules.chooseNativeSummonPositions(actor,source,{scene,origin:caster,count:1,
+   validate:position=>{validateAdjacentPlacement(scene,caster,source.prototypeToken,position);return true;}});
+  if(!positions)return false;
+  await summonAction(actor,'summon',positions[0]);return true;
+ }finally{summonPicker=null;}
 }
 async function toggleSummon(actor){
  if(!actor||!canEdit(actor))return ui.notifications.warn('You cannot summon this character’s memosprite.');
- try{if(hasSummonedToken(config(actor),actor)){stopSummonPicker();await summonAction(actor,'unsummon');}else openSummonPicker(actor);}catch(error){ui.notifications.warn(error.message);}
+ try{if(hasSummonedToken(config(actor),actor)){stopSummonPicker();await summonAction(actor,'unsummon');}else await openSummonPicker(actor);}catch(error){ui.notifications.warn(error.message);}
  refreshSummonWidgets();
 }
 const summonWidgets=new Map();
