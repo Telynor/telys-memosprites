@@ -118,3 +118,29 @@ test('D&D5e previous-HP update metadata detects a lethal hit between renders',as
   for(let i=0;i<8;i++)await new Promise(setImmediate);
   assert.equal(w.actor.flags[ID].activeSummon.status,'idle');
 });
+
+test('every summon forces its live HP circle even with a previously hidden arc, and spells inherit no default dots',async()=>{
+  const w=fixture(),summon=w.token('spell');Object.assign(w.config,{showHpArc:false,showPortrait:false,showResource:true,resourceType:'dots'});
+  await bindSummon(w.actor,summon);const view=summonView(w.actor,w.config);
+  assert.equal(view.config.showHpArc,true);assert.equal(view.config.showPortrait,true);
+  assert.equal(view.config.resourceType,'none');assert.equal(view.config.showResource,false);
+  assert.equal(view.config.hp,40);assert.equal(view.config.maxHp,80);assert.equal(w.config.showHpArc,false);
+});
+
+test('explicit resource options on a spell or Skill summon override the memosprite kit without changing other summons',async()=>{
+  const w=fixture(),summon=w.token('spell');
+  summon.flags[HSR].summonOwner.options={resourceType:'percent',resource:62,resourceMax:100,initiativeMode:'owner'};
+  await bindSummon(w.actor,summon);let view=summonView(w.actor,w.config);
+  assert.equal(view.config.resourceType,'percent');assert.equal(view.config.resource,62);assert.equal(view.config.resourceMax,100);assert.equal(view.config.showResource,true);
+  summon.flags[ID]={resource:35};assert.equal(summonView(w.actor,w.config).config.resource,35);
+  summon.flags[HSR].summonOwner.options={resourceType:'dots',resource:2,resourceMax:99};view=summonView(w.actor,w.config);assert.equal(view.config.resourceMax,3);
+  delete summon.flags[ID].resource;
+  summon.flags[HSR].summonOwner.options={resourceType:'hp',resource:7,resourceMax:10};view=summonView(w.actor,w.config);assert.equal(view.config.resource,7);assert.equal(view.config.hp,40);
+  summon.flags[HSR].summonOwner.options={resourceType:'none'};assert.equal(summonView(w.actor,w.config).config.showResource,false);
+});
+
+test('unprepared HP data still supplies a visible zero arc without changing the token’s statistics',async()=>{
+  const w=fixture(),summon=w.token('new');delete summon.actor.system.attributes.hp;await bindSummon(w.actor,summon);
+  const view=summonView(w.actor,w.config);assert.equal(view.config.showHpArc,true);assert.equal(view.config.hp,0);assert.equal(view.config.maxHp,1);
+  assert.equal(summon.actor.system.attributes.hp,undefined);
+});

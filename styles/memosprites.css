@@ -77,3 +77,10 @@ nav.tms-scrollable-tabs .tms-control i{font-size:17px}
 .dnd5e2.sheet.character.tms-tab-open .sheet-body .main-content{min-height:0;overflow-x:hidden!important;overflow-y:auto!important;scrollbar-width:thin;scrollbar-gutter:stable}
 .tms-tab.tab{height:auto;min-height:0;max-height:none;overflow:visible;contain:none;padding-bottom:48px}
 .tms-tab .tms-preview-stage{touch-action:pan-y}
+/* The HP arc is a separate layer outside the circular portrait. */
+.tms-frame svg.tms-hp{display:block!important;visibility:visible!important;opacity:1;overflow:visible;width:70px;height:100px;z-index:5;fill:none;stroke-width:5;stroke-linecap:round}
+.tms-frame .tms-hp path{fill:none;stroke-width:5;stroke-linecap:round}
+.tms-frame .tms-hp-track{stroke:#394d66}
+/* Charges float on the HUD without a circle, background, border or envelope. */
+.tms-frame .tms-dots{background:none;border:0;border-radius:0;box-shadow:none;outline:0;min-width:0;min-height:0;padding:0;width:max-content;height:9px;gap:4px;top:108px}
+.tms-frame .tms-dots i{display:block;flex:none;width:9px;height:9px}

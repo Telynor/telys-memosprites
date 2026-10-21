@@ -3,11 +3,12 @@ import {adjacentPlacements,validateAdjacentPlacement} from "./summon-placement.m
 const ID = 'telys-memosprites';
 const HSR = 'telys-star-rail-ultimates';
 const DEFAULT_TAB_ICON='<svg class="tms-tab-symbol" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 19.4 11.6 29 15l-9.6 3.4L16 28l-3.4-9.6L3 15l9.6-3.4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="16" cy="15" r="4.2" fill="currentColor"/><path d="M24 3v5M21.5 5.5h5M26 23v5M23.5 25.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
-const DEFAULT = {enabled:false, summoned:false, summonedTokenId:'', sourceUuid:'', name:'Memosprite', image:'', portrait:'', portraitCropX:0,portraitCropY:0,portraitCropScale:100, tabIcon:'', imageX:50,imageY:50,imageScale:100, hp:20,maxHp:20, resourceType:'counter',resource:0,resourceMax:3, abilities:[],showOnHud:true,showHudName:true,hideTalentOnHud:true,showPortrait:true,showHpArc:true,showHpNumber:true,showResource:true,showAbilities:true,showSummonButton:true,frameX:28,frameY:4,frameScale:75,frameWidth:145,portraitX:0,portraitY:0,portraitScale:100,hpTextX:0,hpTextY:0,hpTextScale:100,resourceX:0,resourceY:0,resourceScale:100,abilitiesX:0,abilitiesY:0,abilitiesScale:100};
+const DEFAULT = {enabled:false, summoned:false, summonedTokenId:'', sourceUuid:'', name:'Memosprite', image:'', portrait:'', portraitCropX:0,portraitCropY:0,portraitCropScale:100, tabIcon:'', imageX:50,imageY:50,imageScale:100, hp:20,maxHp:20, resourceType:'dots',initiativeMode:'own',resource:0,resourceMax:3, abilities:[],showOnHud:true,showHudName:true,hideTalentOnHud:true,showPortrait:true,showHpArc:true,showHpNumber:true,showResource:true,showAbilities:true,showSummonButton:true,frameX:28,frameY:4,frameScale:75,frameWidth:145,portraitX:0,portraitY:0,portraitScale:100,hpTextX:0,hpTextY:0,hpTextScale:100,resourceX:0,resourceY:0,resourceScale:100,abilitiesX:0,abilitiesY:0,abilitiesScale:100};
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clamp = (v,min,max) => Math.max(min,Math.min(max,Number(v)||0));
 const config = actor => {
  const stored=actor.getFlag(ID,'config')??{},base={...DEFAULT,...stored,abilities:(stored.abilities??[]).slice(0,5)};
+ if(stored.showResource===false)base.resourceType='none';
  const token=summonLinks.summonView(actor,base).token,summoned=Boolean(token);
  return {...base,summoned,summonedTokenId:summoned?token.id:''};
 };
@@ -71,7 +72,10 @@ function onMidiDamage(workflow){
 }
 async function save(actor, changes) {
   if (!canEdit(actor)) return ui.notifications.warn('You cannot configure this character.');
-  const next = {...config(actor),...changes};
+  const {activeResource,...patch}=changes;
+  if(activeResource!==undefined){const live=summonLinks.summonView(actor,config(actor));if(live.token&&Number(activeResource)!==live.config.resource)await summonAction(actor,'resource',{value:activeResource});}
+  const next = {...config(actor),...patch};
+  next.showResource=next.resourceType!=='none';
   next.resourceMax=clamp(next.resourceMax,1,next.resourceType==='dots'?3:next.resourceType==='percent'?100:999);
   next.resource=clamp(next.resource,0,next.resourceMax);
   next.maxHp=clamp(next.maxHp,1,99999);
@@ -103,25 +107,25 @@ function memospriteHealth(c){
  return {hp:clamp(attributes.value,0,maxHp),maxHp,linked:true};
 }
 function resourceMarkup(c) {
-  if(!c.summoned||!c.showResource) return '';
+  if(!c.summoned||!c.showResource||c.resourceType==='none') return '';
   const value=clamp(c.resource,0,c.resourceMax), max=clamp(c.resourceMax,1,999);
-  if(c.resourceType==='dots') return `<div class="tms-dots" data-part="resource" aria-label="${value} of ${max} charges">${Array.from({length:Math.min(max,3)},(_,i)=>`<i class="${i<value?'lit':''}"></i>`).join('')}</div>`;
+  if(c.resourceType==='dots') return `<div class="tms-dots" data-part="resource" aria-label="${value} of ${max} charges">${Array.from({length:3},(_,i)=>`<i class="${i<value?'lit':''}"></i>`).join('')}</div>`;
   if(c.resourceType==='percent') return `<div class="tms-fang" data-part="resource" style="--fill:${clamp(value,0,100)}%"><span>${Math.round(value)}%</span></div>`;
-  return `<div class="tms-counter" data-part="resource">${value}/${max}</div>`;
+  return `<div class="tms-counter" data-part="resource" aria-label="${value} of ${max} resource HP">${value}/${max}</div>`;
 }
 function frame(actor,c,{preview=false}={}) {
   const health=memospriteHealth(c),hp=clamp(health.hp/health.maxHp*100,0,100);
   const position=boundedFrame(c);
   const layout=['portrait','hpText','resource','abilities'].map(part=>`--${part}-x:${clamp(c[part+'X'],-300,300)}px;--${part}-y:${clamp(c[part+'Y'],-300,300)}px;--${part}-scale:${clamp(c[part+'Scale'],25,300)/100}`).join(';');
   return `<div class="tms-frame ${c.summoned?'is-summoned':'is-idle'}" style="--tms-color:${esc(color(actor))};--frame-width:${clamp(c.frameWidth,90,330)}px;--frame-x:${position.x}px;--frame-y:${position.y}px;--frame-scale:${frameScale(c)/100};--crop-x:${clamp(c.portraitCropX,-150,150)}px;--crop-y:${clamp(c.portraitCropY,-150,150)}px;--crop-scale:${clamp(c.portraitCropScale,25,400)/100};${layout}">
-    ${c.showPortrait||c.summoned&&c.showHpArc?`<div class="tms-portrait-unit" data-part="portrait">${c.showPortrait?`<div class="tms-portrait"><img src="${esc(c.portrait||c.image||'icons/svg/mystery-man.svg')}" alt="${esc(c.name)} portrait"></div>`:''}${c.summoned&&c.showHpArc?`<svg class="tms-hp" viewBox="0 0 70 100" aria-label="${health.hp} of ${health.maxHp} HP"><path class="tms-hp-track" d="M36 85 A35 35 0 0 1 36 15"/><path class="tms-hp-value" d="M36 85 A35 35 0 0 1 36 15" pathLength="100" style="stroke-dasharray:${hp} 100;opacity:${hp>0?1:0}"/></svg>`:''}</div>`:''}
+    ${c.showPortrait||c.summoned?`<div class="tms-portrait-unit" data-part="portrait">${c.showPortrait?`<div class="tms-portrait"><img src="${esc(c.portrait||c.image||'icons/svg/mystery-man.svg')}" alt="${esc(c.name)} portrait"></div>`:''}${c.summoned?`<svg class="tms-hp" viewBox="-3 0 76 100" fill="none" aria-label="${health.hp} of ${health.maxHp} HP"><path class="tms-hp-track" fill="none" stroke="#171e30" d="M36 85 A35 35 0 0 1 36 15"/><path class="tms-hp-value" fill="none" stroke="#74e5fa" d="M36 85 A35 35 0 0 1 36 15" pathLength="100" style="stroke-dasharray:${hp} 100;opacity:${hp>0?1:0}"/></svg>`:''}</div>`:''}
     ${c.summoned?`${c.showHpNumber?`<div class="tms-hp-number" data-part="hpText">${Math.round(health.hp)} <small>/ ${Math.round(health.maxHp)}</small></div>`:''}${c.showAbilities?`<div class="tms-ability-icons" data-part="abilities">${(c.abilities||[]).slice(0,5).map(a=>`<span title="${esc(`${a.name||'Ability'}${a.text?`: ${a.text}`:''} (cost ${a.cost??0})`)}">${a.icon?`<img src="${esc(a.icon)}" alt="">`:'✦'}<b>${esc(a.name||'Ability')}</b></span>`).join('')}</div>`:''}`:''}
     ${resourceMarkup(c)}
   </div>`;
 }
 const label=(text,name,value,type='text',extra='')=>`<label>${text}<input type="${type}" name="${name}" value="${esc(value)}" ${extra}></label>`;
 function panel(actor) {
- const c=config(actor), gm=game.user.isGM,live=summonLinks.summonView(actor,c),health=memospriteHealth(live.token?live.config:c);
+ const c=config(actor), gm=game.user.isGM,live=summonLinks.summonView(actor,c),health=memospriteHealth(live.token?live.config:c),resource=live.token?live.config:c;
  const abilityRows=c.abilities.map((a,i)=>`<div class="tms-ability" data-index="${i}"><header><b>Ability ${i+1}</b>${gm?'<button type="button" data-action="remove-ability" title="Remove ability">×</button>':''}</header>${label('Name','abilityName',a.name||'')}${label('Description','abilityText',a.text||'')}${label('Damage formula (optional)','abilityDamage',a.damage||'')}${label('Resource cost','abilityCost',a.cost??1,'number','min="0" max="100"')}${label('Icon','abilityIcon',a.icon||'')}<button type="button" data-action="use-ability" data-index="${i}">Use ${esc(a.name||'ability')}</button></div>`).join('');
  return `<section class="tms-tab tab" data-group="primary" data-tab="tms-memosprite" style="--tms-color:${esc(color(actor))}"><header><h2>Memosprite</h2><button type="button" data-action="summon" ${!c.enabled||!canEdit(actor)?'disabled':''}>${live.token?'Unsummon memosprite':'Summon memosprite'}</button></header>
  <div class="tms-layout"><div class="tms-fields"><label class="tms-check"><input type="checkbox" name="enabled" ${c.enabled?'checked':''} ${!gm?'disabled':''}> Has a memosprite?</label>
@@ -130,14 +134,15 @@ function panel(actor) {
  ${label('Tab icon URL','tabIcon',c.tabIcon)}<button type="button" data-pick="tabIcon">Choose tab icon</button>
  ${label('Circular memosprite portrait URL','portrait',c.portrait||c.image)}<button type="button" data-pick="portrait">Choose portrait</button><button type="button" data-action="portrait-editor">Open portrait editor</button>
  <h3>HP and resource</h3><div class="tms-triple">${label('Current HP','hp',health.hp,'number',`min="0" ${health.linked?'disabled':''}`)}${label('Maximum HP','maxHp',health.maxHp,'number',`min="1" ${health.linked?'disabled':''}`)}</div>${health.linked?'<p>HP follows the live summoned token while active. Change HP on that token’s sheet. Temporary portrait and HP mapping end at 0 HP or removal; saved portrait and layout remain intact.</p>':''}
- <label>Resource display<select name="resourceType"><option value="counter" ${c.resourceType==='counter'?'selected':''}>X/Y counter</option><option value="dots" ${c.resourceType==='dots'?'selected':''}>Up to 3 usage dots</option><option value="percent" ${c.resourceType==='percent'?'selected':''}>Fang percentage</option></select></label>
- <div class="tms-triple">${label('Current resource','resource',c.resource,'number','min="0"')}${label('Maximum resource','resourceMax',c.resourceMax,'number','min="1"')}</div><button type="button" data-action="restore">Restore resource</button>
+ <label>Show resource?<select name="resourceType"><option value="none" ${c.resourceType==='none'?'selected':''}>None</option><option value="hp" ${['hp','counter'].includes(c.resourceType)?'selected':''}>HP</option><option value="dots" ${c.resourceType==='dots'?'selected':''}>Dots (3)</option><option value="percent" ${c.resourceType==='percent'?'selected':''}>Fang percentage</option></select></label>
+ <label>Turn<select name="initiativeMode"><option value="own" ${c.initiativeMode!=='owner'?'selected':''}>Uses own initiative</option><option value="owner" ${c.initiativeMode==='owner'?'selected':''}>Takes its turn with you</option></select></label>
+ <div class="tms-triple">${label('Current resource',live.token?'activeResource':'resource',resource.resource,'number','min="0"')}${label('Maximum resource','resourceMax',resource.resourceMax,'number',`min="1" ${live.token?'disabled':''}`)}</div><button type="button" data-action="restore">Restore resource</button>
  <h3>Abilities (up to five)</h3><div data-abilities>${abilityRows}</div>${gm&&c.abilities.length<5?'<button type="button" data-action="add-ability">Add ability</button>':''}
  <h3>Combat HUD frame designer</h3><label class="tms-check"><input type="checkbox" name="showHudName" ${c.showHudName?'checked':''} ${!gm?'disabled':''}> Show bottom character name on the HUD</label><label class="tms-check"><input type="checkbox" name="hideTalentOnHud" ${c.hideTalentOnHud?'checked':''} ${!gm?'disabled':''}> Hide summoner Talent on combat HUD while memosprite is enabled</label>
  <label class="tms-check"><input type="checkbox" name="showSummonButton" ${c.showSummonButton?'checked':''} ${!gm?'disabled':''}> Show floating Summon Memosprite button</label><button type="button" data-action="show-summon-widget" ${!canEdit(actor)?'disabled':''}>Show floating summon button now</button>
- <h3>Visible HUD elements</h3>${[['showPortrait','Circular portrait'],['showHpArc','Semicircle HP bar'],['showHpNumber','HP value'],['showResource','Value / percentage / dots'],['showAbilities','Ability row']].map(([key,title])=>`<label class="tms-check"><input type="checkbox" name="${key}" ${c[key]?'checked':''} ${!gm?'disabled':''}> ${title}</label>`).join('')}
+ <h3>Visible HUD elements</h3><p>Every active summon shows its live HP semicircle. Optional resources are separate from this HP bar.</p>${[['showPortrait','Circular portrait'],['showHpNumber','HP value'],['showAbilities','Ability row']].map(([key,title])=>`<label class="tms-check"><input type="checkbox" name="${key}" ${c[key]?'checked':''} ${!gm?'disabled':''}> ${title}</label>`).join('')}
  <div class="tms-triple">${label('Frame X (px)','frameX',c.frameX,'number')}${label('Frame Y (px)','frameY',c.frameY,'number')}${label('Frame width (px)','frameWidth',c.frameWidth,'number','min="90" max="330"')}</div>
- <h3>Place each memosprite element</h3>${[['portrait','Portrait + HP arc','showPortrait'],['hpText','HP numbers','showHpNumber'],['resource','Resource counter','showResource'],['abilities','Abilities','showAbilities']].map(([key,title,visible])=>`<div class="tms-part-editor"><strong>${title}</strong><button type="button" data-action="toggle-element" data-element="${visible}" ${!gm?'disabled':''}>${c[visible]?'Remove from HUD':'Restore to HUD'}</button><div class="tms-triple">${label('X (px)',key+'X',c[key+'X'],'number','min="-300" max="300"')}${label('Y (px)',key+'Y',c[key+'Y'],'number','min="-300" max="300"')}${label('Scale %',key+'Scale',c[key+'Scale'],'number','min="25" max="300"')}</div></div>`).join('')}
+ <h3>Place each memosprite element</h3>${[['portrait','Portrait + HP arc','showPortrait'],['hpText','HP numbers','showHpNumber'],['resource','Resource counter','showResource'],['abilities','Abilities','showAbilities']].map(([key,title,visible])=>`<div class="tms-part-editor"><strong>${title}</strong>${key==='resource'?'':`<button type="button" data-action="toggle-element" data-element="${visible}" ${!gm?'disabled':''}>${c[visible]?'Remove from HUD':'Restore to HUD'}</button>`}<div class="tms-triple">${label('X (px)',key+'X',c[key+'X'],'number','min="-300" max="300"')}${label('Y (px)',key+'Y',c[key+'Y'],'number','min="-300" max="300"')}${label('Scale %',key+'Scale',c[key+'Scale'],'number','min="25" max="300"')}</div></div>`).join('')}
  <p>Drag an element in the preview to place it. Scroll over an element to scale it; drag empty space in the memosprite frame to move everything together. Settings save automatically.</p></div>
  <div class="tms-preview"><h3>Frame preview</h3><p>Uses ${esc(actor.name)}’s current HSR combat HUD layout. Preview shows the summoned sprite so you can design its HP and resources.</p><label class="tms-frame-scale">Whole memosprite HUD scale <input type="range" name="frameScale" min="30" max="250" value="${c.frameScale}"><output data-frame-scale>${c.frameScale}%</output></label><label class="tms-preview-toggle"><input type="checkbox" data-preview-summoned checked> Preview summoned</label><div class="tms-preview-stage"><div class="tms-preview-card">${hudPreview(actor,c)}</div></div><div class="tms-preview-abilities">${abilitySummary(c)}</div></div></div></section>`;
 }
@@ -203,12 +208,12 @@ function inject(app,html) {
    case 'show-summon-widget':await setWidgetLayout(actor.id,{hidden:false});break;
    case 'toggle-element':if(game.user.isGM){const key=action.dataset.element;await save(actor,{[key]:!current[key]});}break;
    case 'summon':if(!current.enabled)return;await toggleSummon(actor);return;
-   case 'restore':if(game.user.isGM)await save(actor,{resource:current.resourceMax,...(memospriteHealth(current).linked?{}:{hp:current.maxHp})});break;
+   case 'restore':if(game.user.isGM){const live=summonLinks.summonView(actor,current);if(live.token)await summonAction(actor,'resource',{value:live.config.resourceMax});else await save(actor,{resource:current.resourceMax,...(memospriteHealth(current).linked?{}:{hp:current.maxHp})});}break;
    case 'add-ability':if(game.user.isGM)await save(actor,{abilities:[...current.abilities,{name:'New ability',text:'',cost:1,icon:''}].slice(0,5)});break;
    case 'remove-ability':if(game.user.isGM)await save(actor,{abilities:current.abilities.filter((_,i)=>i!==Number(action.closest('[data-index]').dataset.index))});break;
-   case 'use-ability':{if(!current.summoned)return ui.notifications.warn('Summon the memosprite first.');const a=current.abilities[Number(action.dataset.index)],cost=clamp(a?.cost,0,100);if(!a||current.resource<cost)return ui.notifications.warn('Not enough memosprite resource.');
+   case 'use-ability':{if(!current.summoned)return ui.notifications.warn('Summon the memosprite first.');const a=current.abilities[Number(action.dataset.index)],cost=clamp(a?.cost,0,100),live=summonLinks.summonView(actor,current);if(!a||live.config.resource<cost)return ui.notifications.warn('Not enough memosprite resource.');
     let roll=null;if(a.damage){try{roll=await new Roll(a.damage).evaluate();}catch(error){return ui.notifications.error(`Invalid memosprite damage formula: ${error.message}`);}}
-    await save(actor,{resource:current.resource-cost});
+    await summonAction(actor,'resource',{value:live.config.resource-cost});
     if(roll)await roll.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:`${current.name} — ${a.name} damage: ${a.text||''}`,flags:{dnd5e:{roll:{type:'damage'}},[ID]:{summonerUuid:actor.uuid,memospriteName:current.name}}});
     else await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content:`<h3>${esc(current.name)}: ${esc(a.name)}</h3><p>${esc(a.text)}</p>`});break;}
   } app.render(false);
@@ -240,27 +245,27 @@ function summonerToken(actor){
  const active=canvas.tokens?.controlled?.find(t=>t.actor?.id===actor.id);
  return active??canvas.tokens?.placeables?.find(t=>t.actor?.id===actor.id&&t.document?.combatant)??canvas.tokens?.placeables?.find(t=>t.actor?.id===actor.id);
 }
-function adjacentSquares(actor,scene=canvas.scene){
+function adjacentSquares(actor,scene=canvas.scene,ignoredTokens=[]){
  if(!scene)return [];
  const controlled=summonerToken(actor),source=sourceActor(config(actor));
  const caster=controlled?.document?.parent?.id===scene.id?controlled.document:scene.tokens.find(t=>t.actorId===actor.id&&game.combat?.combatants.some(entry=>entry.tokenId===t.id&&entry.sceneId===scene.id))??scene.tokens.find(t=>t.actorId===actor.id);
  if(!caster||!source)return [];
- return adjacentPlacements(scene,caster,source.prototypeToken??{width:1,height:1});
+ return adjacentPlacements(scene,caster,source.prototypeToken??{width:1,height:1},ignoredTokens);
 }
 function stopSummonPicker(){
  if(!summonPicker)return;
  game.modules.get(HSR)?.api?.summoning?.cancelNativeSummonPlacement?.(summonPicker);
 }
-async function summonAction(actor,action,position){
+async function summonAction(actor,action,position,replaces){
  if(!actor||!canEdit(actor))throw Error('You do not own this character.');
- if(game.user.isGM)return performSummonAction(actor,action,position);
+ if(game.user.isGM)return performSummonAction(actor,action,position,{replaces});
  const gm=game.users.find(u=>u.isGM&&u.active);
  if(!gm)throw Error('A GM must be online to create the memosprite token and initiative entry.');
  const id=foundry.utils.randomID();
  return new Promise((resolve,reject)=>{
   const timer=setTimeout(()=>{pendingSummons.delete(id);reject(Error('The GM did not respond to the summon request.'));},12000);
   pendingSummons.set(id,{resolve,reject,timer});
-  game.socket.emit(SUMMON_SOCKET,{type:'request',id,actorId:actor.id,action,position,sceneId:canvas.scene?.id,casterTokenId:summonerToken(actor)?.document?.id,userId:game.user.id});
+  game.socket.emit(SUMMON_SOCKET,{type:'request',id,actorId:actor.id,action,position,replaces,sceneId:canvas.scene?.id,casterTokenId:summonerToken(actor)?.document?.id,userId:game.user.id});
  });
 }
 const summonSceneQueues=new Map();
@@ -269,44 +274,42 @@ async function performSummonAction(actor,action,position,options={}){
  const work=prior.catch(()=>{}).then(()=>performSummonActionNow(actor,action,position,options));summonSceneQueues.set(key,work);
  try{return await work;}finally{if(summonSceneQueues.get(key)===work)summonSceneQueues.delete(key);}
 }
-async function performSummonActionNow(actor,action,position,{sceneId=canvas.scene?.id,userId=game.user.id,casterTokenId}={}){
+async function performSummonActionNow(actor,action,position,{sceneId=canvas.scene?.id,userId=game.user.id,casterTokenId,replaces}={}){
  const user=game.users.get(userId);
  if(!user||!(user.isGM||actor.testUserPermission(user,'OWNER')))throw Error('This player does not own the summoner.');
+ const rules=game.modules.get(HSR)?.api?.summoning;
  const c=config(actor),live=summonLinks.summonedToken(actor,c),scene=action==='unsummon'?(live?.parent??game.scenes.get(sceneId)):game.scenes.get(sceneId);
+ if(action==='resource'){if(!live)throw Error('Summon the creature first.');const view=summonLinks.summonView(actor,c);await live.setFlag(ID,'resource',clamp(position?.value,0,view.config.resourceMax));return;}
  if(!scene||!c.enabled||!hasMemosprite(actor))throw Error('Configure this character’s memosprite and open its scene first.');
  if(action==='unsummon'){
   const token=live;
   if(token&&summonLinks.summonOwner(token)?.uuid===actor.uuid){
-   const combatant=game.combat?.combatants.find(entry=>entry.tokenId===token.id&&entry.sceneId===scene.id);
-   if(combatant)await game.combat.deleteEmbeddedDocuments('Combatant',[combatant.id]);
-   await scene.deleteEmbeddedDocuments('Token',[token.id]);
+   await rules.removeSummonedTokens(rules.replacementTokens(actor,{sceneId:scene.id,tokenId:token.id}));
   }
   await summonLinks.clearSummon(actor,token);
   await save(actor,{summoned:false,summonedTokenId:''});return;
  }
- if(hasSummonedToken(c,actor))throw Error('This character already has an active summon.');
+ rules.validateSummonReplacement(actor,replaces);
+ const ignoredTokens=rules.replacementTokens(actor,replaces);
  const source=await fromUuid(c.sourceUuid);
  if(source?.documentName!=='Actor'||!game.actors.get(source.id))throw Error('Link a world Actor in the memosprite menu before summoning.');
  const caster=casterTokenId?scene.tokens.get(casterTokenId):summonerToken(actor)?.document?.parent?.id===scene.id?summonerToken(actor).document:scene.tokens.find(t=>t.actorId===actor.id);
  if(!caster||caster.actorId!==actor.id)throw Error('Place the summoner’s token on this scene first.');
- validateAdjacentPlacement(scene,caster,source.prototypeToken,position);
+ validateAdjacentPlacement(scene,caster,source.prototypeToken,position,ignoredTokens);
  const tokenDocument=await source.getTokenDocument({x:position.x,y:position.y,...(Number.isFinite(position.rotation)?{rotation:position.rotation}:{}),actorLink:false,elevation:Number(caster.elevation)||0,...(caster.level?{level:caster.level.id??caster.level}:{})});
  const tokenData=tokenDocument.toObject();
  tokenData.x=position.x;tokenData.y=position.y;tokenData.actorId=source.id;tokenData.actorLink=false;
- tokenData.flags={...tokenData.flags,[ID]:{...tokenData.flags?.[ID],summonerId:actor.id,summonerUuid:actor.uuid},[HSR]:{...tokenData.flags?.[HSR],summonOwner:{casterId:actor.id,casterUuid:actor.uuid,casterTokenId:caster.id,createdAt:Date.now()}}};
- validateAdjacentPlacement(scene,caster,tokenData,position);
+ tokenData.flags={...tokenData.flags,[ID]:{...tokenData.flags?.[ID],summonerId:actor.id,summonerUuid:actor.uuid},[HSR]:{...tokenData.flags?.[HSR],summonOwner:{casterId:actor.id,casterUuid:actor.uuid,casterTokenId:caster.id,createdAt:Date.now(),options:{resourceType:c.showResource?c.resourceType:'none',resource:c.resource,resourceMax:c.resourceMax,initiativeMode:c.initiativeMode}}}};
+ validateAdjacentPlacement(scene,caster,tokenData,position,ignoredTokens);
+ await rules.requestSummonReplacement(actor,replaces);
  const [created]=await scene.createEmbeddedDocuments('Token',[tokenData]);
  if(!created)throw Error('Cannot Fit: the memosprite placement was blocked. No token was created.');
  try{
-  const combat=game.combat;
-  if(combat?.scene?.id===scene.id){
-   const [entry]=await combat.createEmbeddedDocuments('Combatant',[{tokenId:created.id,sceneId:scene.id,actorId:source.id}]);
-   await combat.rollInitiative([entry.id]);
-  }
+  await rules.setupSummonInitiative(actor,created,{initiativeMode:c.initiativeMode});
   await save(actor,{summoned:true,summonedTokenId:created.id});
   await summonLinks.bindSummon(actor,created);
   void game.modules.get(HSR)?.api?.summoning?.playSummonAnimation?.(created);
- }catch(error){await scene.deleteEmbeddedDocuments('Token',[created.id]);throw error;}
+ }catch(error){await rules.removeSummonedTokens([created]);throw error;}
 }
 async function openSummonPicker(actor){
  if(!canvas?.ready||!canvas.scene)throw Error('Open the battle map first.');
@@ -315,17 +318,19 @@ async function openSummonPicker(actor){
  if(!c.enabled||!hasMemosprite(actor))throw Error('Enable Has a memosprite? on this character first.');
  if(!source||!game.actors.get(source.id))throw Error('Drag a world Actor into the memosprite menu first.');
  const rules=game.modules.get(HSR)?.api?.summoning;
- if(!rules?.chooseNativeSummonPositions)throw Error('Update Tely’s Star Rail Ultimates to preview.22 or later for native summon placement.');
+ if(!rules?.confirmSummonReplacement)throw Error('Update Tely’s Star Rail Ultimates to preview.23 or later for summon resources and replacement.');
  if(summonPicker||rules.isNativeSummonPlacementActive?.())return ui.notifications.warn('Finish or cancel the current summon placement first.');
  const caster=summonerToken(actor)?.document??scene.tokens.find(t=>t.actorId===actor.id);
  if(!caster||caster.actorId!==actor.id)throw Error('Place the summoner’s token on this scene first.');
- if(!adjacentSquares(actor,scene).length)throw Error('Cannot Fit: no adjacent placement has space for this memosprite.');
+ const replaces=await rules.confirmSummonReplacement(actor);if(replaces===false)return false;
+ const ignoredTokens=rules.replacementTokens(actor,replaces);
+ if(!adjacentSquares(actor,scene,ignoredTokens).length)throw Error('Cannot Fit: no adjacent placement has space for this memosprite.');
  summonPicker=actor.uuid??actor.id;
  try{
   const positions=await rules.chooseNativeSummonPositions(actor,source,{scene,origin:caster,count:1,
-   validate:position=>{validateAdjacentPlacement(scene,caster,source.prototypeToken,position);return true;}});
+   validate:position=>{validateAdjacentPlacement(scene,caster,source.prototypeToken,position,ignoredTokens);return true;}});
   if(!positions)return false;
-  await summonAction(actor,'summon',positions[0]);return true;
+  await summonAction(actor,'summon',positions[0],replaces);return true;
  }finally{summonPicker=null;}
 }
 async function toggleSummon(actor){
@@ -389,12 +394,12 @@ let observer, queued=false;
 Hooks.once('ready',()=>{
  if(!game.modules.get(HSR)?.active){ui.notifications.error("Tely's Memosprites requires Tely's Star Rail Ultimates.");return;}
  summonLinks.installSummonLinks(()=>{syncHud();refreshSummonWidgets();});
- game.modules.get(ID).api={config,save,bindSummon:summonLinks.bindSummon,getSummonView:actor=>summonLinks.summonView(actor,config(actor)),summon:actor=>openSummonPicker(actor),unsummon:actor=>summonAction(actor,'unsummon'),toggleSummon};
+ game.modules.get(ID).api={config,save,bindSummon:summonLinks.bindSummon,getSummonView:actor=>summonLinks.summonView(actor,config(actor)),summon:actor=>openSummonPicker(actor),unsummon:actor=>summonAction(actor,'unsummon'),toggleSummon,setResource:(actor,value)=>summonAction(actor,'resource',{value})};
  game.socket.on(SUMMON_SOCKET,async message=>{
   if(message.type==='result'&&message.userId===game.user.id){const request=pendingSummons.get(message.id);if(!request)return;clearTimeout(request.timer);pendingSummons.delete(message.id);message.error?request.reject(Error(message.error)):request.resolve();return;}
   if(message.type!=='request'||!game.user.isGM||game.users.find(u=>u.isGM&&u.active)?.id!==game.user.id)return;
   let error='';
-  try{const actor=game.actors.get(message.actorId);if(!actor)throw Error('The summoner is unavailable.');await performSummonAction(actor,message.action,message.position,{sceneId:message.sceneId,userId:message.userId,casterTokenId:message.casterTokenId});}catch(cause){error=cause.message;}
+  try{const actor=game.actors.get(message.actorId);if(!actor)throw Error('The summoner is unavailable.');await performSummonAction(actor,message.action,message.position,{sceneId:message.sceneId,userId:message.userId,casterTokenId:message.casterTokenId,replaces:message.replaces});}catch(cause){error=cause.message;}
   game.socket.emit(SUMMON_SOCKET,{type:'result',id:message.id,userId:message.userId,error});
  });
  Hooks.on('dnd5e.rollDamageV2',onDndDamage);

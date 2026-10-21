@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Telynor/telys-star-rail-ultimates-v2
-          ref: v3.14.0-preview.22
+          ref: light-cones-preview
           path: .test-ultimates
           persist-credentials: false
       - name: Check the live summon HUD in Chromium

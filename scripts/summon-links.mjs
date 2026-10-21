@@ -29,17 +29,22 @@ export function summonOwner(token){
 }
 export function summonedToken(actor,config={}){
   const active=flag(actor,ID,'activeSummon');
-  if(active){if(active.status!=='active')return null;return game.scenes.get(active.sceneId)?.tokens.get(active.tokenId)??null;}
+  if(active){if(active.status!=='active')return null;const token=game.scenes.get(active.sceneId)?.tokens.get(active.tokenId);return token&&summonOwner(token)?.uuid===actor.uuid?token:null;}
   if(!config.summoned||!config.summonedTokenId)return null;
   return game.scenes.map(scene=>scene.tokens.get(config.summonedTokenId)).find(token=>token&&summonOwner(token)?.uuid===actor.uuid)??null;
 }
 export function summonView(actor,config){
-  const token=summonedToken(actor,config),hp=token?.actor?.system?.attributes?.hp;
+  const token=summonedToken(actor,config),hp=token?.actor?.system?.attributes?.hp??{};
   const active=Boolean(token?.actor&&!defeated(token,flag(actor,ID,'activeSummon')));
   if(!active)return {token:null,config:{...config,summoned:false}};
   const source=flag(token,ID,'summonerUuid')===actor.uuid||flag(token,ID,'summonerId')===actor.id;
+  const meta=flag(token,HSR,'summonOwner')??flag(token,HSR,'abilitySummon');
+  const options=game.modules?.get(HSR)?.api?.summoning?.getSummonOptions?.(actor,token)??meta?.options??(source?config:{resourceType:'none'});
+  const resourceType=options.resourceType==='counter'?'hp':options.resourceType??'none';
+  const resourceMax=resourceType==='dots'?3:resourceType==='percent'?100:Math.max(1,Number(options.resourceMax)||3);
+  const resource=Math.min(resourceMax,Math.max(0,Number(flag(token,ID,'resource')??options.resource)||0));
   const portrait=source?(config.portrait||config.image||token.actor.img||token.texture?.src):(token.actor.img||token.texture?.src||config.portrait||config.image);
-  return {token,config:{...config,summoned:true,portrait,image:portrait,hp:Math.max(0,Number(hp.value)||0),maxHp:Math.max(1,Number(hp.max)||1),...(!config.enabled?{showResource:false,showAbilities:false}:{}),...(source?{}:{portraitCropX:0,portraitCropY:0,portraitCropScale:100}),_liveHealth:true}};
+  return {token,config:{...config,summoned:true,portrait,image:portrait,showPortrait:true,showHpArc:true,hp:Math.max(0,Number(hp.value)||0),maxHp:Math.max(1,Number(hp.max)||1),resourceType,resourceMax,resource,showResource:resourceType!=='none'&&options.showResource!==false,...(!config.enabled?{showAbilities:false}:{}),...(!source?{portraitCropX:0,portraitCropY:0,portraitCropScale:100}:{}),_liveHealth:true}};
 }
 function enqueue(actor,work){
   const key=actor.uuid,job=(pending.get(key)??Promise.resolve()).catch(()=>{}).then(work);pending.set(key,job);
