@@ -1,0 +1,35 @@
+name: Build Memosprites Release
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check syntax and live summon lifecycle
+        run: |
+          node --check scripts/memosprites.js
+          npm test
+      - name: Package module
+        run: |
+          version="$(node -p "JSON.parse(require('fs').readFileSync('module.json')).version")"
+          echo "MEMOSPRITE_VERSION=$version" >> "$GITHUB_ENV"
+          zip -r "telys-memosprites-v$version.zip" module.json README.md memosprites.js memosprites.css scripts styles
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v$MEMOSPRITE_VERSION"
+          archive="telys-memosprites-v$MEMOSPRITE_VERSION.zip"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$archive" module.json --clobber
+          else
+            gh release create "$tag" "$archive" module.json --title "$tag" --generate-notes --target "$GITHUB_SHA"
+          fi
