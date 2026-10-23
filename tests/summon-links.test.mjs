@@ -144,3 +144,18 @@ test('unprepared HP data still supplies a visible zero arc without changing the 
   const view=summonView(w.actor,w.config);assert.equal(view.config.showHpArc,true);assert.equal(view.config.hp,0);assert.equal(view.config.maxHp,1);
   assert.equal(summon.actor.system.attributes.hp,undefined);
 });
+
+test('unrelated actor updates and token movement do not reconcile the world or refresh summon overlays',async()=>{
+  const w=fixture(),hooks=new Map(),summon=w.token('active');let refreshes=0;
+  globalThis.Hooks={on(name,fn){const list=hooks.get(name)??[];list.push(fn);hooks.set(name,list)}};
+  installSummonLinks(()=>refreshes++);await bindSummon(w.actor,summon);
+  const settle=async()=>{for(let i=0;i<8;i++)await new Promise(setImmediate)};await settle();refreshes=0;
+  for(let i=0;i<50;i++){
+    for(const hook of hooks.get('updateActor'))hook(w.source,{'system.currency.gp':i},{});
+    for(const hook of hooks.get('updateToken'))hook(summon,{x:i,y:i},{});
+  }
+  await settle();assert.equal(refreshes,0);
+  summon.actor.system.attributes.hp.value=0;
+  for(const hook of hooks.get('updateActor'))hook(summon.actor,{'system.attributes.hp.value':0},{dnd5e:{hp:{value:40}}});
+  await settle();assert.equal(w.actor.flags[ID].activeSummon.status,'idle');assert.ok(refreshes>0);
+});

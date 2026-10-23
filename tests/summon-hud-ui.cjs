@@ -85,6 +85,16 @@ window.ready=true;
    await page.waitForSelector('.tms-counter');assert.equal(await page.locator('.tms-counter').innerText(),'4/10');
    await page.evaluate(()=>{summon.flags[HSR].summonOwner.options={resourceType:'none'};Hooks.callAll('updateToken',summon)});
    await page.waitForFunction(()=>!document.querySelector('.tms-dots,.tms-counter,.tms-fang'));
+   // Unrelated chat/menu DOM changes must not schedule a summon-HUD frame.
+   await page.evaluate(()=>{
+    window.originalRAF=window.requestAnimationFrame;window.summonFrames=0;
+    window.requestAnimationFrame=function(callback){summonFrames++;return originalRAF.call(this,callback)};
+    const noise=document.createElement('div');noise.id='unrelated';noise.innerHTML='<span>Unrelated update</span>'.repeat(100);document.body.append(noise);
+   });
+   await page.waitForTimeout(100);assert.equal(await page.evaluate(()=>summonFrames),0);
+   await page.evaluate(()=>{window.requestAnimationFrame=originalRAF;document.querySelector('#unrelated').remove();document.querySelector('.tsru-combat-party-hud').innerHTML='<article class="tsru-combat-party-member" data-actor-id="ad"><strong class="name">AD</strong></article>'});
+   await page.waitForFunction(()=>document.querySelector('.tms-hp')?.getAttribute('aria-label')==='40 of 80 HP');
+   assert.equal(await page.locator('.tms-frame').count(),1,'parent HUD redraw restores exactly one live overlay without polling');
    await page.screenshot({path:path.join(root,'summon-hud-live.png')});
    await page.evaluate(()=>setHP(null));await page.waitForFunction(()=>a.getFlag(ID,'activeSummon').status==='active');
    await page.evaluate(()=>setHP(12));await page.waitForFunction(()=>document.querySelector('.tms-hp')?.getAttribute('aria-label')==='12 of 80 HP');

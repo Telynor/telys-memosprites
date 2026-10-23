@@ -1,6 +1,10 @@
 # Tely’s Memosprites
 
-Foundry VTT v14 addon for D&D 5e, requiring Tely’s Star Rail Ultimates **3.14.0-preview.22 or later**. Update both modules and reload the world.
+Foundry VTT v14 addon for D&D 5e, requiring Tely’s Star Rail Ultimates **3.14.0-preview.24 or later**. Update both modules and reload the world.
+
+## Update 1.4.1
+
+Includes the audited summon HUD refresh, independent token damage attribution and duplicate-damage handling fixes. Live portrait, HP semicircle, optional resources and summon initiative settings continue to use the parent module's summon coordinator. This release accompanies Ultimates preview.24 and its shared Party Setup and boss phase fixes.
 
 Enable **Has a memosprite?** on a character’s Memosprite tab. Every Path can use the configuration, floating Summon button and hotbar macro. Drop a world Actor as the source, choose a circular portrait, configure up to five abilities and resources, and position the companion frame on the HSR combat party HUD. Changes save automatically. Owners can summon, dismiss and use abilities; the GM configures the kit.
 
