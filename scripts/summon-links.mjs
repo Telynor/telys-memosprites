@@ -77,30 +77,47 @@ export async function clearSummon(actor,token){
     return true;
   });
 }
-export async function reconcileSummons(){
+export async function reconcileSummons(actors=game.actors){
   if(!authority())return;
-  for(const actor of game.actors){
+  for(const actor of actors){
     const saved=flag(actor,ID,'activeSummon'),config=flag(actor,ID,'config')??{};
     if(saved?.status==='active'){
       const scene=game.scenes.get(saved.sceneId),token=scene?.tokens.get(saved.tokenId);
-      if(!token||token.actor&&defeated(token,saved))await clearSummon(actor,token);
+      if(!token||summonOwner(token)?.uuid!==actor.uuid||token.actor&&defeated(token,saved))await clearSummon(actor,token);
       else if(hitPoints(token)>0&&saved.wasAlive===false)await bindSummon(actor,token);
     }else if(!saved&&config.summoned){const token=summonedToken(actor,config);if(token)await bindSummon(actor,token);}
   }
 }
 export function installSummonLinks(refresh){
   const run=work=>Promise.resolve(work).catch(error=>console.error(`${ID} | Summon HUD link`,error)).finally(refresh);
+  const changed=(changes,path)=>Object.keys(changes??{}).some(key=>key===path||key.startsWith(path+'.'))||path.split('.').reduce((value,key)=>value?.[key],changes)!==undefined;
+  const affected=source=>game.actors.filter(actor=>{
+    const saved=flag(actor,ID,'activeSummon');if(saved?.status!=='active')return false;
+    const token=game.scenes.get(saved.sceneId)?.tokens.get(saved.tokenId);
+    return token?.actor&&(token.actor===source||token.actor.uuid===source.uuid);
+  });
   Hooks.on('createToken',token=>{const actor=summonOwner(token);if(actor)void run(bindSummon(actor,token));});
   Hooks.on('dnd5e.postSummon',(activity,_profile,tokens)=>{const actor=activity.actor??activity.item?.actor,token=tokens?.at(-1);if(actor&&token)void run(bindSummon(actor,token));});
-  Hooks.on('updateActor',(source,_changes,options={})=>{
+  Hooks.on('updateActor',(source,changes={},options={})=>{
+    const hpChanged=changed(changes,'system.attributes.hp')||changed(changes,'system.attributes.hp.value');
+    const linkChanged=changed(changes,`flags.${ID}.activeSummon`)||changed(changes,`flags.${ID}.config`);
+    if(!hpChanged&&!linkChanged)return;
+    const actors=hpChanged?affected(source):[source];
     // D&D5e supplies the previous HP in its update options. This also detects
     // a lethal change when no render observed the creature's positive HP.
     if(options.dnd5e?.hp?.value>0&&source.system?.attributes?.hp?.value===0){
-      for(const actor of game.actors){const token=summonedToken(actor);if(token?.actor&&(token.actor===source||token.actor.uuid===source.uuid))observedAlive.add(token);}
+      for(const actor of actors){const token=summonedToken(actor);if(token)observedAlive.add(token);}
     }
-    refresh();void run(reconcileSummons());
+    if(actors.length)void run(reconcileSummons(actors));
   });
-  Hooks.on('updateToken',()=>{refresh();void run(reconcileSummons());});
+  Hooks.on('updateToken',(token,changes={})=>{
+    if(!Object.keys(changes).length){refresh();return;}
+    // Movement/rotation has no effect on a token's HUD binding or HP.
+    if(!['actorId','actorLink','delta','texture','flags'].some(path=>changed(changes,path)))return;
+    const actors=game.actors.filter(actor=>{const saved=flag(actor,ID,'activeSummon');return saved?.sceneId===token.parent?.id&&saved?.tokenId===token.id;});
+    const owner=summonOwner(token);if(owner&&!actors.includes(owner))actors.push(owner);
+    if(actors.length)void run(reconcileSummons(actors));
+  });
   Hooks.on('deleteToken',token=>{refresh();for(const actor of game.actors){const current=flag(actor,ID,'activeSummon');if(current?.sceneId===token.parent?.id&&current?.tokenId===token.id)void run(clearSummon(actor,token));}});
   Hooks.on('deleteScene',()=>void run(reconcileSummons()));
   Hooks.on('canvasReady',()=>{refresh();void run(reconcileSummons());});

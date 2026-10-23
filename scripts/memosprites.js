@@ -6,9 +6,13 @@ const DEFAULT_TAB_ICON='<svg class="tms-tab-symbol" viewBox="0 0 32 32" aria-hid
 const DEFAULT = {enabled:false, summoned:false, summonedTokenId:'', sourceUuid:'', name:'Memosprite', image:'', portrait:'', portraitCropX:0,portraitCropY:0,portraitCropScale:100, tabIcon:'', imageX:50,imageY:50,imageScale:100, hp:20,maxHp:20, resourceType:'dots',initiativeMode:'own',resource:0,resourceMax:3, abilities:[],showOnHud:true,showHudName:true,hideTalentOnHud:true,showPortrait:true,showHpArc:true,showHpNumber:true,showResource:true,showAbilities:true,showSummonButton:true,frameX:28,frameY:4,frameScale:75,frameWidth:145,portraitX:0,portraitY:0,portraitScale:100,hpTextX:0,hpTextY:0,hpTextScale:100,resourceX:0,resourceY:0,resourceScale:100,abilitiesX:0,abilitiesY:0,abilitiesScale:100};
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clamp = (v,min,max) => Math.max(min,Math.min(max,Number(v)||0));
-const config = actor => {
+const storedConfig = actor => {
  const stored=actor.getFlag(ID,'config')??{},base={...DEFAULT,...stored,abilities:(stored.abilities??[]).slice(0,5)};
  if(stored.showResource===false)base.resourceType='none';
+ return base;
+};
+const config = actor => {
+ const base=storedConfig(actor);
  const token=summonLinks.summonView(actor,base).token,summoned=Boolean(token);
  return {...base,summoned,summonedTokenId:summoned?token.id:''};
 };
@@ -41,10 +45,20 @@ function rawDiceDamage(rolls){
 }
 function sourceSummoner(source){
  if(!source)return null;
- const matches=game.actors.filter(actor=>{const token=summonLinks.summonView(actor,config(actor)).token;return token?.actor&&(token.actor===source||token.actor.uuid===source.uuid);});
+ const matches=game.actors.filter(actor=>{const token=summonLinks.summonView(actor,storedConfig(actor)).token;return token?.actor&&(token.actor===source||token.actor.uuid===source.uuid);});
  return matches.length===1?matches[0]:null;
 }
 const recentDamage=new Set();
+const damageRollIds=new WeakMap();
+function damageIdentity(rolls,workflow){
+ const captured=rolls.map(roll=>roll?.options?.[HSR]?.attackElement).find(Boolean);
+ if(captured?.eventId)return captured.eventId;
+ if(workflow?.uuid||workflow?.id)return `workflow:${workflow.uuid??workflow.id}`;
+ return rolls.filter(roll=>roll&&typeof roll==='object').map(roll=>{
+  if(!damageRollIds.has(roll))damageRollIds.set(roll,foundry.utils.randomID());
+  return damageRollIds.get(roll);
+ }).join(':');
+}
 function attributeDamage(source,rolls,targets,key){
  const summoner=sourceSummoner(source);if(!summoner||!(game.user.isGM||source.isOwner||summoner.isOwner))return;
  const hsr=parentConfig(summoner),list=Array.from(targets??[]).filter(Boolean);
@@ -61,14 +75,16 @@ function onDndDamage(rolls,data={}){
  const source=data.subject?.actor??data.subject?.item?.actor??data.subject?.parent?.actor??data.subject?.parent;
  const list=Array.isArray(rolls)?rolls:[rolls];
  if(source?.documentName!=='Actor')return;
- const key=list.map(r=>r?.id??r?._id??r?.formula??'roll').join(':');
- attributeDamage(source,list,game.user?.targets,`dnd5e:${key}`);
+ const captured=list.map(roll=>roll?.options?.[HSR]?.attackElement).find(Boolean);
+ if(game.modules.get('midi-qol')?.active&&(captured?.workflowId||data.workflow))return;
+ attributeDamage(source,list,game.user?.targets,damageIdentity(list));
 }
 function onMidiDamage(workflow){
  const source=workflow?.actor;if(source?.documentName!=='Actor')return;
  const rolls=[...new Set([...(Array.isArray(workflow.damageRolls)?workflow.damageRolls:workflow.damageRolls?[workflow.damageRolls]:[]),workflow.damageRoll].filter(Boolean))];
- const targets=workflow.hitTargets?.size?workflow.hitTargets:workflow.targets;
- attributeDamage(source,rolls,targets,`midi:${workflow.uuid??workflow.id??rolls.map(r=>r.id??r.formula).join(':')}`);
+ const usedAttackRoll=Boolean(workflow.attackRoll||workflow.attackRolls?.length||workflow.activity?.attack);
+ const targets=usedAttackRoll?workflow.hitTargets:(workflow.hitTargets?.size?workflow.hitTargets:workflow.targets);
+ attributeDamage(source,rolls,targets,damageIdentity(rolls,workflow));
 }
 async function save(actor, changes) {
   if (!canEdit(actor)) return ui.notifications.warn('You cannot configure this character.');
@@ -376,7 +392,7 @@ Hooks.on('hotbarDrop',(_bar,data,slot)=>{
 function syncHud(){
  const cards=document.querySelectorAll('.tsru-combat-party-hud .tsru-combat-party-member[data-actor-id]');
  for(const card of cards){
-  const actor=game.actors.get(card.dataset.actorId);if(!actor)continue;const c=config(actor);
+  const actor=game.actors.get(card.dataset.actorId);if(!actor)continue;const c=storedConfig(actor);
   const existing=card.querySelector(':scope > .tms-frame');
   card.classList.toggle('tms-hide-hud-name',Boolean(c.enabled&&!c.showHudName));
   const hideTalent=Boolean(c.enabled&&c.hideTalentOnHud);
@@ -391,9 +407,13 @@ function syncHud(){
  }
 }
 let observer, queued=false;
+function refreshSummonUI(){
+ if(queued)return;queued=true;
+ requestAnimationFrame(()=>{queued=false;syncHud();refreshSummonWidgets();});
+}
 Hooks.once('ready',()=>{
  if(!game.modules.get(HSR)?.active){ui.notifications.error("Tely's Memosprites requires Tely's Star Rail Ultimates.");return;}
- summonLinks.installSummonLinks(()=>{syncHud();refreshSummonWidgets();});
+ summonLinks.installSummonLinks(refreshSummonUI);
  game.modules.get(ID).api={config,save,bindSummon:summonLinks.bindSummon,getSummonView:actor=>summonLinks.summonView(actor,config(actor)),summon:actor=>openSummonPicker(actor),unsummon:actor=>summonAction(actor,'unsummon'),toggleSummon,setResource:(actor,value)=>summonAction(actor,'resource',{value})};
  game.socket.on(SUMMON_SOCKET,async message=>{
   if(message.type==='result'&&message.userId===game.user.id){const request=pendingSummons.get(message.id);if(!request)return;clearTimeout(request.timer);pendingSummons.delete(message.id);message.error?request.reject(Error(message.error)):request.resolve();return;}
@@ -404,9 +424,7 @@ Hooks.once('ready',()=>{
  });
  Hooks.on('dnd5e.rollDamageV2',onDndDamage);
  if(game.modules.get('midi-qol')?.active){Hooks.on('midi-qol.damageRollComplete',onMidiDamage);Hooks.on('midi-qol.RollComplete',onMidiDamage);}
- observer=new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;syncHud();});});observer.observe(document.body,{childList:true,subtree:true});syncHud();refreshSummonWidgets();
- // The parent HUD can redraw without changing the actor; keep its overlays in sync.
- setInterval(()=>{if(document.querySelector('.tsru-combat-party-hud'))syncHud();},1000);
+ observer=new MutationObserver(records=>{if(records.some(record=>[...record.addedNodes,...record.removedNodes].some(node=>node.nodeType===1&&(node.matches?.('.tsru-combat-party-hud,.tsru-combat-party-member')||node.querySelector?.('.tsru-combat-party-hud,.tsru-combat-party-member')))))refreshSummonUI();});observer.observe(document.body,{childList:true,subtree:true});syncHud();refreshSummonWidgets();
 });
 const sheetObservers=new WeakMap();
 function watchSheet(app,html){
