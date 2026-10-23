@@ -8,9 +8,10 @@ function fixture({midi=false}={}){
  const sent=[];let id=0;
  const owner={id:'hero',uuid:'Actor.hero',getFlag:(scope,key)=>scope===ID&&key==='config'?{enabled:true}:{}},source={id:'sprite',uuid:'Scene.map.Token.sprite.Actor.npc',documentName:'Actor',isOwner:true};
  const game={user:{id:'gm',isGM:true,targets:new Set([{uuid:'Scene.map.Token.enemy'}])},actors:[owner],modules:new Map([[HSR,{api:{getConfig:()=>({})}}],['midi-qol',{active:midi}]]),socket:{emit:(_socket,message)=>sent.push(message)}};
- const context=vm.createContext({game,console,Hooks:{on(){},once(){}},foundry:{utils:{randomID:()=>`roll-${++id}`}},setTimeout(){},summonLinks:{summonView:()=>({token:{id:'sprite',actor:source}})}});
+ const token={id:'sprite',actor:source};
+ const context=vm.createContext({game,console,Hooks:{on(){},once(){}},foundry:{utils:{randomID:()=>`roll-${++id}`}},setTimeout(){},summonLinks:{summonOwner:()=>owner,summonView:()=>({token})}});
  vm.runInContext(code+'\nglobalThis.api={onDndDamage,onMidiDamage};',context);
- return {sent,game,owner,source,api:context.api,roll:()=>({formula:'1d6',total:4,terms:[{faces:6,number:1,results:[{result:4,active:true}]}]})};
+ return {sent,game,owner,source,token,api:context.api,roll:()=>({formula:'1d6',total:4,terms:[{faces:6,number:1,results:[{result:4,active:true}]}]})};
 }
 test('distinct identical-formula damage rolls each apply Toughness while duplicate notifications apply once',()=>{
  const w=fixture(),first=w.roll(),data={subject:{actor:w.source}};
@@ -26,4 +27,8 @@ test('Midi-managed damage waits for hit targets and deduplicates its two complet
 test('a missed Midi attack never damages Toughness on merely selected targets',()=>{
  const w=fixture({midi:true});w.api.onMidiDamage({uuid:'miss',actor:w.source,damageRolls:[w.roll()],attackRoll:{total:1},hitTargets:new Set(),targets:w.game.user.targets});
  assert.equal(w.sent.length,0);
+});
+test('a synthetic Actor resolves its exact summoner without scanning every world Actor',()=>{
+ const w=fixture();w.source.token=w.token;w.game.actors.filter=()=>{throw Error('No world scan required');};
+ w.api.onDndDamage([w.roll()],{subject:{actor:w.source}});assert.equal(w.sent.length,1);
 });

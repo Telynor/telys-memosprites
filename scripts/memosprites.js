@@ -45,6 +45,8 @@ function rawDiceDamage(rolls){
 }
 function sourceSummoner(source){
  if(!source)return null;
+ const candidate=source.token??(source.parent?.documentName==='Token'?source.parent:null),token=candidate?.document??candidate;
+ if(token){const owner=summonLinks.summonOwner(token);return owner&&summonLinks.summonView(owner,storedConfig(owner)).token===token?owner:null;}
  const matches=game.actors.filter(actor=>{const token=summonLinks.summonView(actor,storedConfig(actor)).token;return token?.actor&&(token.actor===source||token.actor.uuid===source.uuid);});
  return matches.length===1?matches[0]:null;
 }
