@@ -32,3 +32,13 @@ test('a synthetic Actor resolves its exact summoner without scanning every world
  const w=fixture();w.source.token=w.token;w.game.actors.filter=()=>{throw Error('No world scan required');};
  w.api.onDndDamage([w.roll()],{subject:{actor:w.source}});assert.equal(w.sent.length,1);
 });
+test('aborted or cancelled Midi workflows cannot attribute summon damage',()=>{
+ const w=fixture({midi:true});for(const flag of ['aborted','cancelled'])w.api.onMidiDamage({id:flag,[flag]:true,actor:w.source,damageRolls:[w.roll()],targets:w.game.user.targets});
+ assert.equal(w.sent.length,0);
+});
+test('Midi 14.6 damage, rider and bonus arrays retain separate rolls and deduplicate references',()=>{
+ const w=fixture({midi:true}),base=w.roll(),rider=w.roll(),bonus=w.roll();
+ const workflow={id:'all-parts',actor:w.source,damageRolls:[base],otherDamageRolls:[rider,base],bonusDamageRolls:[bonus],hitTargets:w.game.user.targets};
+ Object.defineProperty(workflow,'damageRoll',{get(){throw Error('Deprecated aggregate getter');}});
+ w.api.onMidiDamage(workflow);w.api.onMidiDamage(workflow);assert.equal(w.sent.length,1);assert.equal(w.sent[0].amount,12);
+});

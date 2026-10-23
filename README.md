@@ -1,5 +1,13 @@
 # Tely’s Memosprites
 
+## Update 1.4.2 — Midi-QOL integration
+
+For a D&D5e **6.0.6** world, use **Midi-QOL 14.6.0** and **DAE 14.6.0** on Foundry **14.368 or newer**. The authors publish these through the [Midi-QOL 14.6 manifest](https://gitlab.com/tposney/midi-qol/-/releases/v14.6.0/downloads/module.json) and [DAE 14.6 manifest](https://gitlab.com/tposney/dae/-/releases/v14.6.0/downloads/module.json). The catalog's Midi 14.0 line targets D&D5e 5.x; changing an HSR module cannot make that upstream version support D&D5e 6. D&D5e 5.3.3 worlds retain their Midi/DAE 14.0 integration.
+
+Summon damage attribution now waits for completed, non-aborted workflows and includes separate damage, rider and bonus-roll arrays without counting their deprecated aggregate aliases again. Existing summon ownership, portrait, HP and resource bindings remain unchanged. Use alongside Ultimates preview.27 and Planar Ornaments 1.0.17.
+
+Validation: 24 Node tests and the summon HUD browser regression passed. Actual Foundry/Midi combat remains a live acceptance step.
+
 Foundry VTT v14 addon for D&D 5e, requiring Tely’s Star Rail Ultimates **3.14.0-preview.24 or later**. Update both modules and reload the world.
 
 ## Update 1.4.1

@@ -81,9 +81,22 @@ function onDndDamage(rolls,data={}){
  if(game.modules.get('midi-qol')?.active&&(captured?.workflowId||data.workflow))return;
  attributeDamage(source,list,game.user?.targets,damageIdentity(list));
 }
+function midiDamageRolls(workflow) {
+  const rolls=[];
+  for(const [plural,singular]of [["damageRolls","damageRoll"],["otherDamageRolls","otherDamageRoll"],["bonusDamageRolls","bonusDamageRoll"]]){
+    const list=workflow?.[plural];
+    if(Array.isArray(list)&&list.length)rolls.push(...list);
+    else if(workflow?.[singular])rolls.push(workflow[singular]);
+  }
+  if(!rolls.length&&Array.isArray(workflow?.damageRollArray))rolls.push(...workflow.damageRollArray);
+  return [...new Set(rolls.filter(r=>r&&typeof r==="object"))];
+}
+
 function onMidiDamage(workflow){
+ workflow=workflow?.workflow??workflow?.config?.workflow??workflow;
+ if(!workflow||workflow.aborted||workflow.cancelled)return;
  const source=workflow?.actor;if(source?.documentName!=='Actor')return;
- const rolls=[...new Set([...(Array.isArray(workflow.damageRolls)?workflow.damageRolls:workflow.damageRolls?[workflow.damageRolls]:[]),workflow.damageRoll].filter(Boolean))];
+ const rolls=midiDamageRolls(workflow);
  const usedAttackRoll=Boolean(workflow.attackRoll||workflow.attackRolls?.length||workflow.activity?.attack);
  const targets=usedAttackRoll?workflow.hitTargets:(workflow.hitTargets?.size?workflow.hitTargets:workflow.targets);
  attributeDamage(source,rolls,targets,damageIdentity(rolls,workflow));
@@ -425,7 +438,7 @@ Hooks.once('ready',()=>{
   game.socket.emit(SUMMON_SOCKET,{type:'result',id:message.id,userId:message.userId,error});
  });
  Hooks.on('dnd5e.rollDamageV2',onDndDamage);
- if(game.modules.get('midi-qol')?.active){Hooks.on('midi-qol.damageRollComplete',onMidiDamage);Hooks.on('midi-qol.RollComplete',onMidiDamage);}
+ if(game.modules.get('midi-qol')?.active)Hooks.on('midi-qol.RollComplete',onMidiDamage);
  observer=new MutationObserver(records=>{if(records.some(record=>[...record.addedNodes,...record.removedNodes].some(node=>node.nodeType===1&&(node.matches?.('.tsru-combat-party-hud,.tsru-combat-party-member')||node.querySelector?.('.tsru-combat-party-hud,.tsru-combat-party-member')))))refreshSummonUI();});observer.observe(document.body,{childList:true,subtree:true});syncHud();refreshSummonWidgets();
 });
 const sheetObservers=new WeakMap();
