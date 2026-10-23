@@ -17,11 +17,11 @@ jobs:
         run: |
           node --check scripts/memosprites.js
           npm test
-      - name: Check out the released Skill spell coordinator
+      - name: Check out the tested Skill spell coordinator
         uses: actions/checkout@v4
         with:
           repository: Telynor/telys-star-rail-ultimates-v2
-          ref: fc2b9bb3532461e2c51177d5b2e8f030d5da0ad7
+          ref: 1fddbf93ce3bd8077925cd59c302d1536837aa62
           path: .test-ultimates
           persist-credentials: false
       - name: Check the live summon HUD in Chromium
